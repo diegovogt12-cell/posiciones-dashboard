@@ -66,6 +66,31 @@ export default function Totales({ positions }: Props) {
     (t) => isOption(t) && byType[t].count > 0
   );
 
+  // VWAP para equity y futuros, agrupado por ticker + tipo.
+  // Precio promedio ponderado = Σ(precio × posición) / Σ(posición).
+  // Representa el costo base / break-even de la posición neta abierta.
+  interface VwapRow {
+    ticker: string;
+    tipo: InstrumentType;
+    netPos: number;
+    pricePosSum: number;
+    count: number;
+  }
+  const vwapMap: Record<string, VwapRow> = {};
+  for (const p of positions) {
+    if (p.tipo !== "equity" && p.tipo !== "futuro") continue;
+    const key = `${p.ticker}::${p.tipo}`;
+    if (!vwapMap[key]) {
+      vwapMap[key] = { ticker: p.ticker, tipo: p.tipo, netPos: 0, pricePosSum: 0, count: 0 };
+    }
+    vwapMap[key].netPos += p.posicion;
+    vwapMap[key].pricePosSum += p.precio * p.posicion;
+    vwapMap[key].count += 1;
+  }
+  const vwapRows = Object.values(vwapMap).sort((a, b) =>
+    a.ticker === b.ticker ? a.tipo.localeCompare(b.tipo) : a.ticker.localeCompare(b.ticker)
+  );
+
   return (
     <div className="grid gap-6">
       <section>
@@ -88,6 +113,55 @@ export default function Totales({ positions }: Props) {
           />
         </div>
       </section>
+
+      {vwapRows.length > 0 && (
+        <section>
+          <h2 className="text-sm uppercase tracking-wider text-slate-400 mb-3">
+            Precio promedio (VWAP) — equity y futuros
+          </h2>
+          <div className="bg-panel border border-slate-800 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-900 text-slate-400 uppercase text-xs tracking-wider">
+                <tr>
+                  <th className="text-left px-4 py-3">Ticker</th>
+                  <th className="text-left px-4 py-3">Tipo</th>
+                  <th className="text-right px-4 py-3">Posiciones</th>
+                  <th className="text-right px-4 py-3">Neto títulos/contratos</th>
+                  <th className="text-right px-4 py-3" title="Σ(precio × posición) / Σ(posición)">
+                    Precio promedio
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {vwapRows.map((r) => {
+                  const vwap = r.netPos !== 0 ? r.pricePosSum / r.netPos : null;
+                  return (
+                    <tr key={`${r.ticker}-${r.tipo}`} className="border-t border-slate-800">
+                      <td className="px-4 py-3 font-mono">{r.ticker}</td>
+                      <td className="px-4 py-3">{INSTRUMENT_LABELS[r.tipo]}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatNumber(r.count)}</td>
+                      <td className={`px-4 py-3 text-right font-mono ${r.netPos >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                        {formatNumber(r.netPos)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        {vwap == null ? (
+                          <span className="text-slate-600" title="Posición neta plana">—</span>
+                        ) : (
+                          formatMoney(vwap)
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-slate-500 mt-2">
+            Precio promedio = Σ(precio × posición) / Σ(posición). Equivale al costo base /
+            break-even de la posición neta abierta. Si la posición neta es cero se muestra —.
+          </p>
+        </section>
+      )}
 
       {optionRows.length > 0 && (
         <section>
