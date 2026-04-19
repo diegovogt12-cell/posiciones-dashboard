@@ -1,0 +1,125 @@
+"use client";
+
+import { useState } from "react";
+import { InstrumentType, INSTRUMENT_OPTIONS, INSTRUMENT_LABELS, Position } from "@/lib/types";
+
+interface Props {
+  onAdd: (p: Position) => void;
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+export default function PositionForm({ onAdd }: Props) {
+  const [fecha, setFecha] = useState(today());
+  const [tipo, setTipo] = useState<InstrumentType>("equity");
+  const [ticker, setTicker] = useState("");
+  const [posicion, setPosicion] = useState("");
+  const [nocional, setNocional] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const isDerivative = tipo !== "equity";
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    const pos = Number(posicion);
+    const noc = Number(nocional);
+    if (!fecha) return setError("Captura la fecha.");
+    if (!ticker.trim()) return setError("Captura el ticker / emisora.");
+    if (!Number.isFinite(pos) || pos === 0) return setError("Posición debe ser un número distinto de cero (+ largo / - corto).");
+    if (!Number.isFinite(noc)) return setError("Nocional debe ser numérico.");
+
+    onAdd({
+      id: crypto.randomUUID(),
+      fecha,
+      tipo,
+      ticker: ticker.trim().toUpperCase(),
+      posicion: pos,
+      nocional: noc,
+    });
+
+    setTicker("");
+    setPosicion("");
+    setNocional("");
+  };
+
+  return (
+    <form onSubmit={submit} className="bg-panel rounded-lg p-5 border border-slate-800 grid gap-4 md:grid-cols-6">
+      <div className="flex flex-col gap-1 md:col-span-1">
+        <label className="text-xs uppercase tracking-wider text-slate-400">Fecha</label>
+        <input
+          type="date"
+          value={fecha}
+          onChange={(e) => setFecha(e.target.value)}
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-2 focus:outline-none focus:border-accent"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1 md:col-span-1">
+        <label className="text-xs uppercase tracking-wider text-slate-400">Tipo</label>
+        <select
+          value={tipo}
+          onChange={(e) => setTipo(e.target.value as InstrumentType)}
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-2 focus:outline-none focus:border-accent"
+        >
+          {INSTRUMENT_OPTIONS.map((t) => (
+            <option key={t} value={t}>{INSTRUMENT_LABELS[t]}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex flex-col gap-1 md:col-span-1">
+        <label className="text-xs uppercase tracking-wider text-slate-400">
+          {isDerivative ? "Subyacente" : "Emisora"}
+        </label>
+        <input
+          type="text"
+          value={ticker}
+          onChange={(e) => setTicker(e.target.value)}
+          placeholder="AMXL, WALMEX, ..."
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-2 uppercase focus:outline-none focus:border-accent"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1 md:col-span-1">
+        <label className="text-xs uppercase tracking-wider text-slate-400">
+          Posición {isDerivative ? "(contratos)" : "(títulos)"}
+        </label>
+        <input
+          type="number"
+          step="any"
+          value={posicion}
+          onChange={(e) => setPosicion(e.target.value)}
+          placeholder="+ largo / - corto"
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-2 focus:outline-none focus:border-accent"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1 md:col-span-1">
+        <label className="text-xs uppercase tracking-wider text-slate-400">Nocional</label>
+        <input
+          type="number"
+          step="any"
+          value={nocional}
+          onChange={(e) => setNocional(e.target.value)}
+          placeholder="0.00"
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-2 focus:outline-none focus:border-accent"
+        />
+      </div>
+
+      <div className="flex items-end md:col-span-1">
+        <button
+          type="submit"
+          className="w-full bg-accent text-slate-900 font-semibold rounded px-4 py-2 hover:bg-sky-300 transition"
+        >
+          Agregar
+        </button>
+      </div>
+
+      {error && (
+        <div className="md:col-span-6 text-sm text-rose-400">{error}</div>
+      )}
+    </form>
+  );
+}
