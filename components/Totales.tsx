@@ -1,6 +1,6 @@
 "use client";
 
-import { INSTRUMENT_LABELS, InstrumentType, Position } from "@/lib/types";
+import { INSTRUMENT_LABELS, InstrumentType, Position, notional } from "@/lib/types";
 import { formatMoney, formatNumber } from "@/lib/format";
 
 interface Props {
@@ -35,6 +35,7 @@ export default function Totales({ positions }: Props) {
   const byTicker: Record<string, Totals> = {};
 
   for (const p of positions) {
+    const noc = notional(p);
     const long = p.posicion >= 0;
     const slots = [global, byType[p.tipo]];
     if (!byTicker[p.ticker]) byTicker[p.ticker] = emptyTotals();
@@ -42,10 +43,10 @@ export default function Totales({ positions }: Props) {
 
     for (const t of slots) {
       t.contratos += p.posicion;
-      t.nocional += p.nocional;
+      t.nocional += noc;
       t.count += 1;
-      if (long) t.nocionalLong += p.nocional;
-      else t.nocionalShort += p.nocional;
+      if (long) t.nocionalLong += noc;
+      else t.nocionalShort += noc;
     }
   }
 

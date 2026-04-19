@@ -14,7 +14,7 @@ export default function PositionForm({ onAdd }: Props) {
   const [tipo, setTipo] = useState<InstrumentType>("equity");
   const [ticker, setTicker] = useState("");
   const [posicion, setPosicion] = useState("");
-  const [nocional, setNocional] = useState("");
+  const [precio, setPrecio] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const isDerivative = tipo !== "equity";
@@ -24,11 +24,11 @@ export default function PositionForm({ onAdd }: Props) {
     setError(null);
 
     const pos = Number(posicion);
-    const noc = Number(nocional);
+    const px = Number(precio);
     if (!fecha) return setError("Captura la fecha.");
     if (!ticker.trim()) return setError("Captura el ticker / emisora.");
     if (!Number.isFinite(pos) || pos === 0) return setError("Posición debe ser un número distinto de cero (+ largo / - corto).");
-    if (!Number.isFinite(noc)) return setError("Nocional debe ser numérico.");
+    if (!Number.isFinite(px) || px < 0) return setError("Precio debe ser un número no negativo.");
 
     onAdd({
       id: crypto.randomUUID(),
@@ -36,12 +36,12 @@ export default function PositionForm({ onAdd }: Props) {
       tipo,
       ticker: ticker.trim().toUpperCase(),
       posicion: pos,
-      nocional: noc,
+      precio: px,
     });
 
     setTicker("");
     setPosicion("");
-    setNocional("");
+    setPrecio("");
   };
 
   return (
@@ -97,12 +97,13 @@ export default function PositionForm({ onAdd }: Props) {
       </div>
 
       <div className="flex flex-col gap-1 md:col-span-1">
-        <label className="text-xs uppercase tracking-wider text-slate-400">Nocional</label>
+        <label className="text-xs uppercase tracking-wider text-slate-400">Precio</label>
         <input
           type="number"
           step="any"
-          value={nocional}
-          onChange={(e) => setNocional(e.target.value)}
+          min="0"
+          value={precio}
+          onChange={(e) => setPrecio(e.target.value)}
           placeholder="0.00"
           className="bg-slate-900 border border-slate-700 rounded px-3 py-2 focus:outline-none focus:border-accent"
         />

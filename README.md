@@ -8,7 +8,9 @@ Dashboard en Next.js para llevar posiciones abiertas de equity, opciones (calls 
 - **Tipo**: equity, call, put, futuro, forward
 - **Ticker / subyacente** (emisora si es equity, subyacente si es derivado)
 - **Posición**: número de títulos o contratos (+ largo, − corto)
-- **Nocional** de la posición
+- **Precio** unitario del título / contrato
+
+El **nocional** se calcula automáticamente (precio × posición) y preserva el signo de la posición.
 
 ## Pestañas
 
