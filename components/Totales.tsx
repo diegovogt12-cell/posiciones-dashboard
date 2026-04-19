@@ -1,6 +1,13 @@
 "use client";
 
-import { INSTRUMENT_LABELS, InstrumentType, Position, notional } from "@/lib/types";
+import {
+  INSTRUMENT_LABELS,
+  InstrumentType,
+  Position,
+  notional,
+  notionalExposure,
+  isOption,
+} from "@/lib/types";
 import { formatMoney, formatNumber } from "@/lib/format";
 
 interface Props {
@@ -9,7 +16,8 @@ interface Props {
 
 interface Totals {
   contratos: number;
-  nocional: number;
+  nocional: number;          // suma de prima × pos × mult
+  exposicion: number;        // suma de strike × pos × mult (solo opciones)
   count: number;
   nocionalLong: number;
   nocionalShort: number;
@@ -18,6 +26,7 @@ interface Totals {
 const emptyTotals = (): Totals => ({
   contratos: 0,
   nocional: 0,
+  exposicion: 0,
   count: 0,
   nocionalLong: 0,
   nocionalShort: 0,
@@ -36,6 +45,7 @@ export default function Totales({ positions }: Props) {
 
   for (const p of positions) {
     const noc = notional(p);
+    const expo = notionalExposure(p) ?? 0;
     const long = p.posicion >= 0;
     const slots = [global, byType[p.tipo]];
     if (!byTicker[p.ticker]) byTicker[p.ticker] = emptyTotals();
@@ -44,6 +54,7 @@ export default function Totales({ positions }: Props) {
     for (const t of slots) {
       t.contratos += p.posicion;
       t.nocional += noc;
+      t.exposicion += expo;
       t.count += 1;
       if (long) t.nocionalLong += noc;
       else t.nocionalShort += noc;
@@ -51,6 +62,9 @@ export default function Totales({ positions }: Props) {
   }
 
   const tickerRows = Object.entries(byTicker).sort(([a], [b]) => a.localeCompare(b));
+  const optionRows = (Object.keys(byType) as InstrumentType[]).filter(
+    (t) => isOption(t) && byType[t].count > 0
+  );
 
   return (
     <div className="grid gap-6">
@@ -58,11 +72,67 @@ export default function Totales({ positions }: Props) {
         <h2 className="text-sm uppercase tracking-wider text-slate-400 mb-3">Totales globales</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card label="Posiciones" value={formatNumber(global.count)} />
-          <Card label="Neto títulos/contratos" value={formatNumber(global.contratos)} emphasis={global.contratos >= 0 ? "pos" : "neg"} />
-          <Card label="Nocional neto" value={formatMoney(global.nocional)} emphasis={global.nocional >= 0 ? "pos" : "neg"} />
-          <Card label="Nocional bruto" value={formatMoney(global.nocionalLong + Math.abs(global.nocionalShort))} />
+          <Card
+            label="Neto títulos/contratos"
+            value={formatNumber(global.contratos)}
+            emphasis={global.contratos >= 0 ? "pos" : "neg"}
+          />
+          <Card
+            label="Nocional neto (prima)"
+            value={formatMoney(global.nocional)}
+            emphasis={global.nocional >= 0 ? "pos" : "neg"}
+          />
+          <Card
+            label="Nocional bruto (prima)"
+            value={formatMoney(global.nocionalLong + Math.abs(global.nocionalShort))}
+          />
         </div>
       </section>
+
+      {optionRows.length > 0 && (
+        <section>
+          <h2 className="text-sm uppercase tracking-wider text-slate-400 mb-3">
+            Opciones — nocional (prima) vs exposición (strike)
+          </h2>
+          <div className="bg-panel border border-slate-800 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-900 text-slate-400 uppercase text-xs tracking-wider">
+                <tr>
+                  <th className="text-left px-4 py-3">Tipo</th>
+                  <th className="text-right px-4 py-3">Posiciones</th>
+                  <th className="text-right px-4 py-3">Neto contratos</th>
+                  <th className="text-right px-4 py-3" title="Prima × contratos × 100">
+                    Nocional (prima)
+                  </th>
+                  <th className="text-right px-4 py-3" title="Strike × contratos × 100">
+                    Exposición (strike)
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {optionRows.map((t) => {
+                  const row = byType[t];
+                  return (
+                    <tr key={t} className="border-t border-slate-800">
+                      <td className="px-4 py-3">{INSTRUMENT_LABELS[t]}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatNumber(row.count)}</td>
+                      <td className={`px-4 py-3 text-right font-mono ${row.contratos >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                        {formatNumber(row.contratos)}
+                      </td>
+                      <td className={`px-4 py-3 text-right font-mono ${row.nocional >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                        {formatMoney(row.nocional)}
+                      </td>
+                      <td className={`px-4 py-3 text-right font-mono ${row.exposicion >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                        {formatMoney(row.exposicion)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="text-sm uppercase tracking-wider text-slate-400 mb-3">Por tipo de instrumento</h2>
@@ -113,6 +183,9 @@ export default function Totales({ positions }: Props) {
                 <th className="text-right px-4 py-3">Posiciones</th>
                 <th className="text-right px-4 py-3">Neto contratos/títulos</th>
                 <th className="text-right px-4 py-3">Nocional neto</th>
+                <th className="text-right px-4 py-3" title="Exposición agregada de opciones del ticker">
+                  Exposición opciones
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -126,11 +199,14 @@ export default function Totales({ positions }: Props) {
                   <td className={`px-4 py-3 text-right font-mono ${row.nocional >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                     {formatMoney(row.nocional)}
                   </td>
+                  <td className={`px-4 py-3 text-right font-mono ${row.exposicion === 0 ? "text-slate-600" : row.exposicion >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    {row.exposicion === 0 ? "—" : formatMoney(row.exposicion)}
+                  </td>
                 </tr>
               ))}
               {tickerRows.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">Sin datos.</td>
+                  <td colSpan={5} className="px-4 py-6 text-center text-slate-500">Sin datos.</td>
                 </tr>
               )}
             </tbody>

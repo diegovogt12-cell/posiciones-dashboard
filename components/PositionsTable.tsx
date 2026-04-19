@@ -1,6 +1,6 @@
 "use client";
 
-import { INSTRUMENT_LABELS, Position, notional, formatVencimiento } from "@/lib/types";
+import { INSTRUMENT_LABELS, Position, notional, notionalExposure, formatVencimiento } from "@/lib/types";
 import { formatMoney, formatNumber } from "@/lib/format";
 
 interface Props {
@@ -31,7 +31,12 @@ export default function PositionsTable({ positions, onDelete }: Props) {
             <th className="text-left px-4 py-3">Venc.</th>
             <th className="text-right px-4 py-3">Posición</th>
             <th className="text-right px-4 py-3">Precio</th>
-            <th className="text-right px-4 py-3">Nocional</th>
+            <th className="text-right px-4 py-3" title="Prima × contratos × multiplicador">
+              Nocional (prima)
+            </th>
+            <th className="text-right px-4 py-3" title="Strike × contratos × multiplicador — solo opciones">
+              Exposición (strike)
+            </th>
             <th className="px-4 py-3"></th>
           </tr>
         </thead>
@@ -39,6 +44,7 @@ export default function PositionsTable({ positions, onDelete }: Props) {
           {sorted.map((p) => {
             const long = p.posicion >= 0;
             const noc = notional(p);
+            const expo = notionalExposure(p);
             const venc = formatVencimiento(p);
             return (
               <tr key={p.id} className="border-t border-slate-800 hover:bg-slate-900/40">
@@ -57,6 +63,9 @@ export default function PositionsTable({ positions, onDelete }: Props) {
                 <td className="px-4 py-3 text-right font-mono">{formatMoney(p.precio)}</td>
                 <td className={`px-4 py-3 text-right font-mono ${noc >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                   {formatMoney(noc)}
+                </td>
+                <td className={`px-4 py-3 text-right font-mono ${expo == null ? "" : expo >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {expo != null ? formatMoney(expo) : <span className="text-slate-600">—</span>}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button

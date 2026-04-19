@@ -7,6 +7,8 @@ import {
   INSTRUMENT_LABELS,
   Position,
   isOption,
+  hasQuarterlyExpiry,
+  hasCustomExpiry,
   EXPIRATION_MONTHS,
   ExpirationMonth,
 } from "@/lib/types";
@@ -28,10 +30,13 @@ export default function PositionForm({ onAdd }: Props) {
   const [strike, setStrike] = useState("");
   const [vencMes, setVencMes] = useState<ExpirationMonth>("MAR");
   const [vencAnio, setVencAnio] = useState<number>(currentYear);
+  const [vencFecha, setVencFecha] = useState<string>(today());
   const [error, setError] = useState<string | null>(null);
 
   const isDerivative = tipo !== "equity";
   const optionSelected = isOption(tipo);
+  const quarterly = hasQuarterlyExpiry(tipo);
+  const custom = hasCustomExpiry(tipo);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,14 +54,23 @@ export default function PositionForm({ onAdd }: Props) {
     let strikeVal: number | undefined;
     let mesVal: ExpirationMonth | undefined;
     let anioVal: number | undefined;
+    let fechaVencVal: string | undefined;
 
     if (optionSelected) {
       const k = Number(strike);
       if (!Number.isFinite(k) || k <= 0)
         return setError("Strike (precio de ejercicio) debe ser mayor a cero para opciones.");
       strikeVal = k;
+    }
+
+    if (quarterly) {
       mesVal = vencMes;
       anioVal = vencAnio;
+    }
+
+    if (custom) {
+      if (!vencFecha) return setError("Captura la fecha de vencimiento del forward.");
+      fechaVencVal = vencFecha;
     }
 
     onAdd({
@@ -69,6 +83,7 @@ export default function PositionForm({ onAdd }: Props) {
       strike: strikeVal,
       vencMes: mesVal,
       vencAnio: anioVal,
+      vencFecha: fechaVencVal,
     });
 
     setTicker("");
@@ -80,10 +95,11 @@ export default function PositionForm({ onAdd }: Props) {
   const inputBase =
     "bg-slate-900 border border-slate-700 rounded px-3 py-2 focus:outline-none focus:border-accent disabled:opacity-40 disabled:cursor-not-allowed";
   const labelBase = "text-xs uppercase tracking-wider text-slate-400";
+  const naTag = <span className="normal-case text-slate-600">(n/a)</span>;
 
   return (
     <form onSubmit={submit} className="bg-panel rounded-lg p-5 border border-slate-800">
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4 xl:grid-cols-5">
         <div className="flex flex-col gap-1">
           <label className={labelBase}>Fecha</label>
           <input
@@ -120,7 +136,7 @@ export default function PositionForm({ onAdd }: Props) {
 
         <div className="flex flex-col gap-1">
           <label className={labelBase}>
-            Strike {!optionSelected && <span className="normal-case text-slate-600">(n/a)</span>}
+            Strike {!optionSelected && naTag}
           </label>
           <input
             type="number"
@@ -134,37 +150,51 @@ export default function PositionForm({ onAdd }: Props) {
           />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className={labelBase}>
-            Venc. mes {!optionSelected && <span className="normal-case text-slate-600">(n/a)</span>}
-          </label>
-          <select
-            value={vencMes}
-            onChange={(e) => setVencMes(e.target.value as ExpirationMonth)}
-            disabled={!optionSelected}
-            className={inputBase}
-          >
-            {EXPIRATION_MONTHS.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-        </div>
+        {custom ? (
+          <div className="flex flex-col gap-1 xl:col-span-2">
+            <label className={labelBase}>Vencimiento (forward)</label>
+            <input
+              type="date"
+              value={vencFecha}
+              onChange={(e) => setVencFecha(e.target.value)}
+              className={inputBase}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-1">
+              <label className={labelBase}>
+                Venc. mes {!quarterly && naTag}
+              </label>
+              <select
+                value={vencMes}
+                onChange={(e) => setVencMes(e.target.value as ExpirationMonth)}
+                disabled={!quarterly}
+                className={inputBase}
+              >
+                {EXPIRATION_MONTHS.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
 
-        <div className="flex flex-col gap-1">
-          <label className={labelBase}>
-            Venc. año {!optionSelected && <span className="normal-case text-slate-600">(n/a)</span>}
-          </label>
-          <select
-            value={vencAnio}
-            onChange={(e) => setVencAnio(Number(e.target.value))}
-            disabled={!optionSelected}
-            className={inputBase}
-          >
-            {YEARS.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-        </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelBase}>
+                Venc. año {!quarterly && naTag}
+              </label>
+              <select
+                value={vencAnio}
+                onChange={(e) => setVencAnio(Number(e.target.value))}
+                disabled={!quarterly}
+                className={inputBase}
+              >
+                {YEARS.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
 
         <div className="flex flex-col gap-1">
           <label className={labelBase}>
@@ -199,7 +229,7 @@ export default function PositionForm({ onAdd }: Props) {
           <div className="text-sm text-rose-400">{error}</div>
         ) : (
           <div className="text-xs text-slate-500">
-            Multiplicador de contrato: futuros / calls / puts × 100 acciones.
+            Multiplicador: futuros / calls / puts × 100 acciones por contrato.
           </div>
         )}
         <button
