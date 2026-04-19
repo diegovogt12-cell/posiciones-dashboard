@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { InstrumentType, INSTRUMENT_OPTIONS, INSTRUMENT_LABELS, Position } from "@/lib/types";
+import {
+  InstrumentType,
+  INSTRUMENT_OPTIONS,
+  INSTRUMENT_LABELS,
+  Position,
+  isOption,
+} from "@/lib/types";
 
 interface Props {
   onAdd: (p: Position) => void;
@@ -15,9 +21,11 @@ export default function PositionForm({ onAdd }: Props) {
   const [ticker, setTicker] = useState("");
   const [posicion, setPosicion] = useState("");
   const [precio, setPrecio] = useState("");
+  const [strike, setStrike] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const isDerivative = tipo !== "equity";
+  const optionSelected = isOption(tipo);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,8 +35,18 @@ export default function PositionForm({ onAdd }: Props) {
     const px = Number(precio);
     if (!fecha) return setError("Captura la fecha.");
     if (!ticker.trim()) return setError("Captura el ticker / emisora.");
-    if (!Number.isFinite(pos) || pos === 0) return setError("Posición debe ser un número distinto de cero (+ largo / - corto).");
-    if (!Number.isFinite(px) || px < 0) return setError("Precio debe ser un número no negativo.");
+    if (!Number.isFinite(pos) || pos === 0)
+      return setError("Posición debe ser un número distinto de cero (+ largo / - corto).");
+    if (!Number.isFinite(px) || px < 0)
+      return setError("Precio debe ser un número no negativo.");
+
+    let strikeVal: number | undefined;
+    if (optionSelected) {
+      const k = Number(strike);
+      if (!Number.isFinite(k) || k <= 0)
+        return setError("Strike (precio de ejercicio) debe ser mayor a cero para opciones.");
+      strikeVal = k;
+    }
 
     onAdd({
       id: crypto.randomUUID(),
@@ -37,15 +55,20 @@ export default function PositionForm({ onAdd }: Props) {
       ticker: ticker.trim().toUpperCase(),
       posicion: pos,
       precio: px,
+      strike: strikeVal,
     });
 
     setTicker("");
     setPosicion("");
     setPrecio("");
+    setStrike("");
   };
 
   return (
-    <form onSubmit={submit} className="bg-panel rounded-lg p-5 border border-slate-800 grid gap-4 md:grid-cols-6">
+    <form
+      onSubmit={submit}
+      className="bg-panel rounded-lg p-5 border border-slate-800 grid gap-4 md:grid-cols-7"
+    >
       <div className="flex flex-col gap-1 md:col-span-1">
         <label className="text-xs uppercase tracking-wider text-slate-400">Fecha</label>
         <input
@@ -64,7 +87,9 @@ export default function PositionForm({ onAdd }: Props) {
           className="bg-slate-900 border border-slate-700 rounded px-3 py-2 focus:outline-none focus:border-accent"
         >
           {INSTRUMENT_OPTIONS.map((t) => (
-            <option key={t} value={t}>{INSTRUMENT_LABELS[t]}</option>
+            <option key={t} value={t}>
+              {INSTRUMENT_LABELS[t]}
+            </option>
           ))}
         </select>
       </div>
@@ -84,6 +109,22 @@ export default function PositionForm({ onAdd }: Props) {
 
       <div className="flex flex-col gap-1 md:col-span-1">
         <label className="text-xs uppercase tracking-wider text-slate-400">
+          Strike {optionSelected ? "" : <span className="normal-case text-slate-600">(n/a)</span>}
+        </label>
+        <input
+          type="number"
+          step="any"
+          min="0"
+          value={optionSelected ? strike : ""}
+          onChange={(e) => setStrike(e.target.value)}
+          disabled={!optionSelected}
+          placeholder={optionSelected ? "0.00" : "—"}
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-2 focus:outline-none focus:border-accent disabled:opacity-40 disabled:cursor-not-allowed"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1 md:col-span-1">
+        <label className="text-xs uppercase tracking-wider text-slate-400">
           Posición {isDerivative ? "(contratos)" : "(títulos)"}
         </label>
         <input
@@ -97,7 +138,9 @@ export default function PositionForm({ onAdd }: Props) {
       </div>
 
       <div className="flex flex-col gap-1 md:col-span-1">
-        <label className="text-xs uppercase tracking-wider text-slate-400">Precio</label>
+        <label className="text-xs uppercase tracking-wider text-slate-400">
+          {optionSelected ? "Prima" : "Precio"}
+        </label>
         <input
           type="number"
           step="any"
@@ -118,9 +161,7 @@ export default function PositionForm({ onAdd }: Props) {
         </button>
       </div>
 
-      {error && (
-        <div className="md:col-span-6 text-sm text-rose-400">{error}</div>
-      )}
+      {error && <div className="md:col-span-7 text-sm text-rose-400">{error}</div>}
     </form>
   );
 }

@@ -27,6 +27,7 @@ export default function PositionsTable({ positions, onDelete }: Props) {
             <th className="text-left px-4 py-3">Fecha</th>
             <th className="text-left px-4 py-3">Tipo</th>
             <th className="text-left px-4 py-3">Ticker</th>
+            <th className="text-right px-4 py-3">Strike</th>
             <th className="text-right px-4 py-3">Posición</th>
             <th className="text-right px-4 py-3">Precio</th>
             <th className="text-right px-4 py-3">Nocional</th>
@@ -42,6 +43,9 @@ export default function PositionsTable({ positions, onDelete }: Props) {
                 <td className="px-4 py-3">{p.fecha}</td>
                 <td className="px-4 py-3">{INSTRUMENT_LABELS[p.tipo]}</td>
                 <td className="px-4 py-3 font-mono">{p.ticker}</td>
+                <td className="px-4 py-3 text-right font-mono text-slate-300">
+                  {p.strike != null ? formatMoney(p.strike) : <span className="text-slate-600">—</span>}
+                </td>
                 <td className={`px-4 py-3 text-right font-mono ${long ? "text-emerald-400" : "text-rose-400"}`}>
                   {long ? "+" : ""}{formatNumber(p.posicion)}
                 </td>
