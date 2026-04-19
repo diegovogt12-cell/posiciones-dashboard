@@ -93,12 +93,12 @@ export default function PositionForm({ onAdd }: Props) {
   };
 
   const inputBase =
-    "bg-slate-900 border border-slate-700 rounded px-3 py-2 focus:outline-none focus:border-accent disabled:opacity-40 disabled:cursor-not-allowed";
-  const labelBase = "text-xs uppercase tracking-wider text-slate-400";
-  const naTag = <span className="normal-case text-slate-600">(n/a)</span>;
+    "bg-white border border-slate-300 rounded px-3 py-2 text-slate-900 focus:outline-none focus:border-monex focus:ring-1 focus:ring-monex disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed";
+  const labelBase = "text-xs uppercase tracking-wider text-slate-500";
+  const naTag = <span className="normal-case text-slate-400">(n/a)</span>;
 
   return (
-    <form onSubmit={submit} className="bg-panel rounded-lg p-5 border border-slate-800">
+    <form onSubmit={submit} className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm">
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4 xl:grid-cols-5">
         <div className="flex flex-col gap-1">
           <label className={labelBase}>Fecha</label>
@@ -226,7 +226,7 @@ export default function PositionForm({ onAdd }: Props) {
 
       <div className="mt-4 flex items-center justify-between gap-4">
         {error ? (
-          <div className="text-sm text-rose-400">{error}</div>
+          <div className="text-sm text-rose-600">{error}</div>
         ) : (
           <div className="text-xs text-slate-500">
             Multiplicador: futuros / calls / puts × 100 acciones por contrato.
@@ -234,7 +234,7 @@ export default function PositionForm({ onAdd }: Props) {
         )}
         <button
           type="submit"
-          className="bg-accent text-slate-900 font-semibold rounded px-6 py-2 hover:bg-sky-300 transition"
+          className="bg-monex text-white font-semibold rounded px-6 py-2 hover:bg-monexHover transition"
         >
           Agregar
         </button>

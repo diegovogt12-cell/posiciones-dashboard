@@ -3,10 +3,6 @@
 @tailwind utilities;
 
 html, body {
-  background: #0b1120;
-  color: #e5e7eb;
-}
-
-input, select {
-  color-scheme: dark;
+  background: #ffffff;
+  color: #0f172a; /* slate-900 */
 }

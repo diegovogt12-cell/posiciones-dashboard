@@ -30,15 +30,15 @@ export default function Home() {
     <main className="max-w-6xl mx-auto px-6 py-8">
       <header className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">Dashboard de Posiciones</h1>
-          <p className="text-slate-400 text-sm">Equity · Opciones · Futuros · Forwards</p>
+          <h1 className="text-2xl font-semibold text-slate-900">Dashboard de Posiciones</h1>
+          <p className="text-slate-500 text-sm">Equity · Opciones · Futuros · Forwards</p>
         </div>
         <div className="text-xs text-slate-500">
           {positions.length} posición{positions.length === 1 ? "" : "es"}
         </div>
       </header>
 
-      <nav className="flex gap-1 border-b border-slate-800 mb-6">
+      <nav className="flex gap-1 border-b border-slate-200 mb-6">
         <TabButton active={tab === "posiciones"} onClick={() => setTab("posiciones")}>
           Posiciones
         </TabButton>
@@ -65,8 +65,8 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
       onClick={onClick}
       className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
         active
-          ? "border-accent text-accent"
-          : "border-transparent text-slate-400 hover:text-slate-200"
+          ? "border-monex text-monex"
+          : "border-transparent text-slate-500 hover:text-slate-800"
       }`}
     >
       {children}

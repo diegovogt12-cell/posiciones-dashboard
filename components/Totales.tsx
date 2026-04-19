@@ -32,6 +32,15 @@ const emptyTotals = (): Totals => ({
   nocionalShort: 0,
 });
 
+// Estilos reutilizables — tema claro
+const panel = "bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm";
+const thead = "bg-slate-50 text-slate-600 uppercase text-xs tracking-wider";
+const rowBase = "border-t border-slate-200";
+const h2 = "text-sm uppercase tracking-wider text-slate-600 mb-3";
+const pos = "text-emerald-600";
+const neg = "text-rose-600";
+const muted = "text-slate-400";
+
 export default function Totales({ positions }: Props) {
   const global = emptyTotals();
   const byType: Record<InstrumentType, Totals> = {
@@ -67,8 +76,6 @@ export default function Totales({ positions }: Props) {
   );
 
   // VWAP para equity y futuros, agrupado por ticker + tipo.
-  // Precio promedio ponderado = Σ(precio × posición) / Σ(posición).
-  // Representa el costo base / break-even de la posición neta abierta.
   interface VwapRow {
     ticker: string;
     tipo: InstrumentType;
@@ -91,10 +98,12 @@ export default function Totales({ positions }: Props) {
     a.ticker === b.ticker ? a.tipo.localeCompare(b.tipo) : a.ticker.localeCompare(b.ticker)
   );
 
+  const signTone = (n: number) => (n >= 0 ? pos : neg);
+
   return (
     <div className="grid gap-6">
       <section>
-        <h2 className="text-sm uppercase tracking-wider text-slate-400 mb-3">Totales globales</h2>
+        <h2 className={h2}>Totales globales</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card label="Posiciones" value={formatNumber(global.count)} />
           <Card
@@ -116,12 +125,10 @@ export default function Totales({ positions }: Props) {
 
       {vwapRows.length > 0 && (
         <section>
-          <h2 className="text-sm uppercase tracking-wider text-slate-400 mb-3">
-            Precio promedio (VWAP) — equity y futuros
-          </h2>
-          <div className="bg-panel border border-slate-800 rounded-lg overflow-hidden">
+          <h2 className={h2}>Precio promedio (VWAP) — equity y futuros</h2>
+          <div className={panel}>
             <table className="w-full text-sm">
-              <thead className="bg-slate-900 text-slate-400 uppercase text-xs tracking-wider">
+              <thead className={thead}>
                 <tr>
                   <th className="text-left px-4 py-3">Ticker</th>
                   <th className="text-left px-4 py-3">Tipo</th>
@@ -136,16 +143,16 @@ export default function Totales({ positions }: Props) {
                 {vwapRows.map((r) => {
                   const vwap = r.netPos !== 0 ? r.pricePosSum / r.netPos : null;
                   return (
-                    <tr key={`${r.ticker}-${r.tipo}`} className="border-t border-slate-800">
-                      <td className="px-4 py-3 font-mono">{r.ticker}</td>
-                      <td className="px-4 py-3">{INSTRUMENT_LABELS[r.tipo]}</td>
-                      <td className="px-4 py-3 text-right font-mono">{formatNumber(r.count)}</td>
-                      <td className={`px-4 py-3 text-right font-mono ${r.netPos >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    <tr key={`${r.ticker}-${r.tipo}`} className={rowBase}>
+                      <td className="px-4 py-3 font-mono text-slate-900">{r.ticker}</td>
+                      <td className="px-4 py-3 text-slate-700">{INSTRUMENT_LABELS[r.tipo]}</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-700">{formatNumber(r.count)}</td>
+                      <td className={`px-4 py-3 text-right font-mono ${signTone(r.netPos)}`}>
                         {formatNumber(r.netPos)}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono">
+                      <td className="px-4 py-3 text-right font-mono text-slate-900">
                         {vwap == null ? (
-                          <span className="text-slate-600" title="Posición neta plana">—</span>
+                          <span className={muted} title="Posición neta plana">—</span>
                         ) : (
                           formatMoney(vwap)
                         )}
@@ -165,12 +172,10 @@ export default function Totales({ positions }: Props) {
 
       {optionRows.length > 0 && (
         <section>
-          <h2 className="text-sm uppercase tracking-wider text-slate-400 mb-3">
-            Opciones — nocional (prima) vs exposición (strike)
-          </h2>
-          <div className="bg-panel border border-slate-800 rounded-lg overflow-hidden">
+          <h2 className={h2}>Opciones — nocional (prima) vs exposición (strike)</h2>
+          <div className={panel}>
             <table className="w-full text-sm">
-              <thead className="bg-slate-900 text-slate-400 uppercase text-xs tracking-wider">
+              <thead className={thead}>
                 <tr>
                   <th className="text-left px-4 py-3">Tipo</th>
                   <th className="text-right px-4 py-3">Posiciones</th>
@@ -187,16 +192,16 @@ export default function Totales({ positions }: Props) {
                 {optionRows.map((t) => {
                   const row = byType[t];
                   return (
-                    <tr key={t} className="border-t border-slate-800">
-                      <td className="px-4 py-3">{INSTRUMENT_LABELS[t]}</td>
-                      <td className="px-4 py-3 text-right font-mono">{formatNumber(row.count)}</td>
-                      <td className={`px-4 py-3 text-right font-mono ${row.contratos >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    <tr key={t} className={rowBase}>
+                      <td className="px-4 py-3 text-slate-700">{INSTRUMENT_LABELS[t]}</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-700">{formatNumber(row.count)}</td>
+                      <td className={`px-4 py-3 text-right font-mono ${signTone(row.contratos)}`}>
                         {formatNumber(row.contratos)}
                       </td>
-                      <td className={`px-4 py-3 text-right font-mono ${row.nocional >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      <td className={`px-4 py-3 text-right font-mono ${signTone(row.nocional)}`}>
                         {formatMoney(row.nocional)}
                       </td>
-                      <td className={`px-4 py-3 text-right font-mono ${row.exposicion >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      <td className={`px-4 py-3 text-right font-mono ${signTone(row.exposicion)}`}>
                         {formatMoney(row.exposicion)}
                       </td>
                     </tr>
@@ -209,10 +214,10 @@ export default function Totales({ positions }: Props) {
       )}
 
       <section>
-        <h2 className="text-sm uppercase tracking-wider text-slate-400 mb-3">Por tipo de instrumento</h2>
-        <div className="bg-panel border border-slate-800 rounded-lg overflow-hidden">
+        <h2 className={h2}>Por tipo de instrumento</h2>
+        <div className={panel}>
           <table className="w-full text-sm">
-            <thead className="bg-slate-900 text-slate-400 uppercase text-xs tracking-wider">
+            <thead className={thead}>
               <tr>
                 <th className="text-left px-4 py-3">Tipo</th>
                 <th className="text-right px-4 py-3">Posiciones</th>
@@ -225,13 +230,13 @@ export default function Totales({ positions }: Props) {
                 const row = byType[t];
                 if (row.count === 0) return null;
                 return (
-                  <tr key={t} className="border-t border-slate-800">
-                    <td className="px-4 py-3">{INSTRUMENT_LABELS[t]}</td>
-                    <td className="px-4 py-3 text-right font-mono">{formatNumber(row.count)}</td>
-                    <td className={`px-4 py-3 text-right font-mono ${row.contratos >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  <tr key={t} className={rowBase}>
+                    <td className="px-4 py-3 text-slate-700">{INSTRUMENT_LABELS[t]}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-700">{formatNumber(row.count)}</td>
+                    <td className={`px-4 py-3 text-right font-mono ${signTone(row.contratos)}`}>
                       {formatNumber(row.contratos)}
                     </td>
-                    <td className={`px-4 py-3 text-right font-mono ${row.nocional >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    <td className={`px-4 py-3 text-right font-mono ${signTone(row.nocional)}`}>
                       {formatMoney(row.nocional)}
                     </td>
                   </tr>
@@ -248,10 +253,10 @@ export default function Totales({ positions }: Props) {
       </section>
 
       <section>
-        <h2 className="text-sm uppercase tracking-wider text-slate-400 mb-3">Por ticker</h2>
-        <div className="bg-panel border border-slate-800 rounded-lg overflow-hidden">
+        <h2 className={h2}>Por ticker</h2>
+        <div className={panel}>
           <table className="w-full text-sm">
-            <thead className="bg-slate-900 text-slate-400 uppercase text-xs tracking-wider">
+            <thead className={thead}>
               <tr>
                 <th className="text-left px-4 py-3">Ticker</th>
                 <th className="text-right px-4 py-3">Posiciones</th>
@@ -264,16 +269,16 @@ export default function Totales({ positions }: Props) {
             </thead>
             <tbody>
               {tickerRows.map(([ticker, row]) => (
-                <tr key={ticker} className="border-t border-slate-800">
-                  <td className="px-4 py-3 font-mono">{ticker}</td>
-                  <td className="px-4 py-3 text-right font-mono">{formatNumber(row.count)}</td>
-                  <td className={`px-4 py-3 text-right font-mono ${row.contratos >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                <tr key={ticker} className={rowBase}>
+                  <td className="px-4 py-3 font-mono text-slate-900">{ticker}</td>
+                  <td className="px-4 py-3 text-right font-mono text-slate-700">{formatNumber(row.count)}</td>
+                  <td className={`px-4 py-3 text-right font-mono ${signTone(row.contratos)}`}>
                     {formatNumber(row.contratos)}
                   </td>
-                  <td className={`px-4 py-3 text-right font-mono ${row.nocional >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  <td className={`px-4 py-3 text-right font-mono ${signTone(row.nocional)}`}>
                     {formatMoney(row.nocional)}
                   </td>
-                  <td className={`px-4 py-3 text-right font-mono ${row.exposicion === 0 ? "text-slate-600" : row.exposicion >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  <td className={`px-4 py-3 text-right font-mono ${row.exposicion === 0 ? muted : signTone(row.exposicion)}`}>
                     {row.exposicion === 0 ? "—" : formatMoney(row.exposicion)}
                   </td>
                 </tr>
@@ -292,10 +297,11 @@ export default function Totales({ positions }: Props) {
 }
 
 function Card({ label, value, emphasis }: { label: string; value: string; emphasis?: "pos" | "neg" }) {
-  const tone = emphasis === "pos" ? "text-emerald-400" : emphasis === "neg" ? "text-rose-400" : "text-slate-100";
+  const tone =
+    emphasis === "pos" ? "text-emerald-600" : emphasis === "neg" ? "text-rose-600" : "text-slate-900";
   return (
-    <div className="bg-panel border border-slate-800 rounded-lg p-4">
-      <div className="text-xs uppercase tracking-wider text-slate-400">{label}</div>
+    <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <div className="text-xs uppercase tracking-wider text-slate-500">{label}</div>
       <div className={`text-xl font-mono mt-1 ${tone}`}>{value}</div>
     </div>
   );

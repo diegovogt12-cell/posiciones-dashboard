@@ -5,9 +5,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#0b1120",
-        panel: "#111827",
-        accent: "#38bdf8",
+        monex: "#0b2545",        // azul Monex (franja superior)
+        monexHover: "#0f2e55",
+        accent: "#0b2545",        // acento primario = azul Monex
       },
     },
   },
