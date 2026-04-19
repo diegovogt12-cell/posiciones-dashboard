@@ -1,6 +1,6 @@
 "use client";
 
-import { INSTRUMENT_LABELS, Position, notional } from "@/lib/types";
+import { INSTRUMENT_LABELS, Position, notional, formatVencimiento } from "@/lib/types";
 import { formatMoney, formatNumber } from "@/lib/format";
 
 interface Props {
@@ -28,6 +28,7 @@ export default function PositionsTable({ positions, onDelete }: Props) {
             <th className="text-left px-4 py-3">Tipo</th>
             <th className="text-left px-4 py-3">Ticker</th>
             <th className="text-right px-4 py-3">Strike</th>
+            <th className="text-left px-4 py-3">Venc.</th>
             <th className="text-right px-4 py-3">Posición</th>
             <th className="text-right px-4 py-3">Precio</th>
             <th className="text-right px-4 py-3">Nocional</th>
@@ -38,6 +39,7 @@ export default function PositionsTable({ positions, onDelete }: Props) {
           {sorted.map((p) => {
             const long = p.posicion >= 0;
             const noc = notional(p);
+            const venc = formatVencimiento(p);
             return (
               <tr key={p.id} className="border-t border-slate-800 hover:bg-slate-900/40">
                 <td className="px-4 py-3">{p.fecha}</td>
@@ -45,6 +47,9 @@ export default function PositionsTable({ positions, onDelete }: Props) {
                 <td className="px-4 py-3 font-mono">{p.ticker}</td>
                 <td className="px-4 py-3 text-right font-mono text-slate-300">
                   {p.strike != null ? formatMoney(p.strike) : <span className="text-slate-600">—</span>}
+                </td>
+                <td className="px-4 py-3 font-mono text-slate-300">
+                  {venc ?? <span className="text-slate-600">—</span>}
                 </td>
                 <td className={`px-4 py-3 text-right font-mono ${long ? "text-emerald-400" : "text-rose-400"}`}>
                   {long ? "+" : ""}{formatNumber(p.posicion)}

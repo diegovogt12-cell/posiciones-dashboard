@@ -7,10 +7,18 @@ Dashboard en Next.js para llevar posiciones abiertas de equity, opciones (calls 
 - **Fecha** de la posición
 - **Tipo**: equity, call, put, futuro, forward
 - **Ticker / subyacente** (emisora si es equity, subyacente si es derivado)
+- **Strike** (solo opciones): precio de ejercicio
+- **Vencimiento** (solo opciones): ciclo trimestral MAR / JUN / SEP / DIC + año
 - **Posición**: número de títulos o contratos (+ largo, − corto)
-- **Precio** unitario del título / contrato
+- **Precio** (prima por acción en opciones; precio unitario en equity/futuros/forwards)
 
-El **nocional** se calcula automáticamente (precio × posición) y preserva el signo de la posición.
+El **nocional** se calcula automáticamente:
+
+```
+nocional = precio × posición × multiplicador
+```
+
+con multiplicador **100** para derivados listados (futuro, call, put) y **1** para equity y forward. El signo de la posición se preserva (largo + / corto −).
 
 ## Pestañas
 
