@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   INSTRUMENT_LABELS,
   InstrumentType,
@@ -8,6 +9,7 @@ import {
   notionalExposure,
   isOption,
 } from "@/lib/types";
+import { fifoLiveLots, LiveLot } from "@/lib/fifo";
 import { formatMoney, formatNumber } from "@/lib/format";
 
 interface Props {
@@ -16,8 +18,8 @@ interface Props {
 
 interface Totals {
   contratos: number;
-  nocional: number;          // suma de prima × pos × mult
-  exposicion: number;        // suma de strike × pos × mult (solo opciones)
+  nocional: number;
+  exposicion: number;
   count: number;
   nocionalLong: number;
   nocionalShort: number;
@@ -32,7 +34,6 @@ const emptyTotals = (): Totals => ({
   nocionalShort: 0,
 });
 
-// Estilos reutilizables — tema claro
 const panel = "bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm";
 const thead = "bg-slate-50 text-slate-600 uppercase text-xs tracking-wider";
 const rowBase = "border-t border-slate-200";
@@ -42,6 +43,15 @@ const neg = "text-rose-600";
 const muted = "text-slate-400";
 
 export default function Totales({ positions }: Props) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (key: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
   const global = emptyTotals();
   const byType: Record<InstrumentType, Totals> = {
     equity: emptyTotals(),
@@ -75,28 +85,36 @@ export default function Totales({ positions }: Props) {
     (t) => isOption(t) && byType[t].count > 0
   );
 
-  // VWAP para equity y futuros, agrupado por ticker + tipo.
-  interface VwapRow {
+  // PEPS (FIFO) para equity y futuros, agrupado por ticker + tipo
+  interface FifoGroup {
+    key: string;
     ticker: string;
     tipo: InstrumentType;
-    netPos: number;
-    pricePosSum: number;
     count: number;
+    lots: LiveLot[];
+    netQty: number;
+    avgPrice: number | null;
   }
-  const vwapMap: Record<string, VwapRow> = {};
+  const groupMap: Record<string, Position[]> = {};
   for (const p of positions) {
     if (p.tipo !== "equity" && p.tipo !== "futuro") continue;
     const key = `${p.ticker}::${p.tipo}`;
-    if (!vwapMap[key]) {
-      vwapMap[key] = { ticker: p.ticker, tipo: p.tipo, netPos: 0, pricePosSum: 0, count: 0 };
-    }
-    vwapMap[key].netPos += p.posicion;
-    vwapMap[key].pricePosSum += p.precio * p.posicion;
-    vwapMap[key].count += 1;
+    (groupMap[key] ||= []).push(p);
   }
-  const vwapRows = Object.values(vwapMap).sort((a, b) =>
-    a.ticker === b.ticker ? a.tipo.localeCompare(b.tipo) : a.ticker.localeCompare(b.ticker)
-  );
+  const fifoGroups: FifoGroup[] = Object.entries(groupMap)
+    .map(([key, trades]) => {
+      const { lots, netQty, avgPrice } = fifoLiveLots(trades);
+      return {
+        key,
+        ticker: trades[0].ticker,
+        tipo: trades[0].tipo,
+        count: trades.length,
+        lots,
+        netQty,
+        avgPrice,
+      };
+    })
+    .sort((a, b) => (a.ticker === b.ticker ? a.tipo.localeCompare(b.tipo) : a.ticker.localeCompare(b.ticker)));
 
   const signTone = (n: number) => (n >= 0 ? pos : neg);
 
@@ -123,49 +141,45 @@ export default function Totales({ positions }: Props) {
         </div>
       </section>
 
-      {vwapRows.length > 0 && (
+      {fifoGroups.length > 0 && (
         <section>
-          <h2 className={h2}>Precio promedio (VWAP) — equity y futuros</h2>
+          <h2 className={h2}>Precio promedio PEPS — equity y futuros</h2>
           <div className={panel}>
             <table className="w-full text-sm">
               <thead className={thead}>
                 <tr>
+                  <th className="w-10 px-4 py-3"></th>
                   <th className="text-left px-4 py-3">Ticker</th>
                   <th className="text-left px-4 py-3">Tipo</th>
-                  <th className="text-right px-4 py-3">Posiciones</th>
+                  <th className="text-right px-4 py-3">Trades</th>
                   <th className="text-right px-4 py-3">Neto títulos/contratos</th>
-                  <th className="text-right px-4 py-3" title="Σ(precio × posición) / Σ(posición)">
+                  <th className="text-right px-4 py-3" title="Costo promedio de los lotes vivos (PEPS)">
                     Precio promedio
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {vwapRows.map((r) => {
-                  const vwap = r.netPos !== 0 ? r.pricePosSum / r.netPos : null;
+                {fifoGroups.map((g) => {
+                  const open = expanded.has(g.key);
+                  const canExpand = g.lots.length > 0;
                   return (
-                    <tr key={`${r.ticker}-${r.tipo}`} className={rowBase}>
-                      <td className="px-4 py-3 font-mono text-slate-900">{r.ticker}</td>
-                      <td className="px-4 py-3 text-slate-700">{INSTRUMENT_LABELS[r.tipo]}</td>
-                      <td className="px-4 py-3 text-right font-mono text-slate-700">{formatNumber(r.count)}</td>
-                      <td className={`px-4 py-3 text-right font-mono ${signTone(r.netPos)}`}>
-                        {formatNumber(r.netPos)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-slate-900">
-                        {vwap == null ? (
-                          <span className={muted} title="Posición neta plana">—</span>
-                        ) : (
-                          formatMoney(vwap)
-                        )}
-                      </td>
-                    </tr>
+                    <FifoRow
+                      key={g.key}
+                      group={g}
+                      open={open}
+                      canExpand={canExpand}
+                      onToggle={() => canExpand && toggle(g.key)}
+                      signTone={signTone}
+                    />
                   );
                 })}
               </tbody>
             </table>
           </div>
           <p className="text-xs text-slate-500 mt-2">
-            Precio promedio = Σ(precio × posición) / Σ(posición). Equivale al costo base /
-            break-even de la posición neta abierta. Si la posición neta es cero se muestra —.
+            Método PEPS (primeras entradas, primeras salidas). Las salidas consumen los lotes más
+            antiguos primero; el precio promedio se calcula sobre los lotes vivos restantes.
+            Haz clic en ▸ para ver el desglose de la posición viva.
           </p>
         </section>
       )}
@@ -293,6 +307,90 @@ export default function Totales({ positions }: Props) {
         </div>
       </section>
     </div>
+  );
+}
+
+function FifoRow({
+  group,
+  open,
+  canExpand,
+  onToggle,
+  signTone,
+}: {
+  group: {
+    key: string;
+    ticker: string;
+    tipo: InstrumentType;
+    count: number;
+    lots: LiveLot[];
+    netQty: number;
+    avgPrice: number | null;
+  };
+  open: boolean;
+  canExpand: boolean;
+  onToggle: () => void;
+  signTone: (n: number) => string;
+}) {
+  return (
+    <>
+      <tr
+        className={`${rowBase} ${canExpand ? "cursor-pointer hover:bg-slate-50" : "opacity-70"}`}
+        onClick={onToggle}
+      >
+        <td className="w-10 px-4 py-3 text-slate-400">
+          {canExpand ? (open ? "▾" : "▸") : <span className={muted}>—</span>}
+        </td>
+        <td className="px-4 py-3 font-mono text-slate-900">{group.ticker}</td>
+        <td className="px-4 py-3 text-slate-700">{INSTRUMENT_LABELS[group.tipo]}</td>
+        <td className="px-4 py-3 text-right font-mono text-slate-700">{formatNumber(group.count)}</td>
+        <td className={`px-4 py-3 text-right font-mono ${signTone(group.netQty)}`}>
+          {formatNumber(group.netQty)}
+        </td>
+        <td className="px-4 py-3 text-right font-mono text-slate-900">
+          {group.avgPrice == null ? (
+            <span className={muted} title="Posición plana">—</span>
+          ) : (
+            formatMoney(group.avgPrice)
+          )}
+        </td>
+      </tr>
+      {open && canExpand && (
+        <tr className={rowBase}>
+          <td></td>
+          <td colSpan={5} className="px-4 py-3 bg-slate-50/60">
+            <div className="text-xs uppercase tracking-wider text-slate-500 mb-2">
+              Desglose de la posición viva ({group.lots.length} lote{group.lots.length === 1 ? "" : "s"})
+            </div>
+            <table className="w-full text-xs">
+              <thead className="text-slate-500">
+                <tr>
+                  <th className="text-left font-medium px-2 py-1">Fecha lote</th>
+                  <th className="text-right font-medium px-2 py-1">Cantidad viva</th>
+                  <th className="text-right font-medium px-2 py-1">Precio del lote</th>
+                  <th className="text-right font-medium px-2 py-1">Nocional del lote</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.lots.map((l, i) => (
+                  <tr key={`${l.positionId}-${i}`} className="border-t border-slate-200">
+                    <td className="px-2 py-1 font-mono text-slate-700">{l.fecha}</td>
+                    <td className={`px-2 py-1 text-right font-mono ${signTone(l.qty)}`}>
+                      {formatNumber(l.qty)}
+                    </td>
+                    <td className="px-2 py-1 text-right font-mono text-slate-700">
+                      {formatMoney(l.precio)}
+                    </td>
+                    <td className={`px-2 py-1 text-right font-mono ${signTone(l.qty * l.precio)}`}>
+                      {formatMoney(l.qty * l.precio)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
