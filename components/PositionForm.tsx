@@ -14,7 +14,7 @@ import {
 } from "@/lib/types";
 
 interface Props {
-  onAdd: (p: Position) => void;
+  onAdd: (p: Omit<Position, "id">) => void | Promise<void>;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -74,7 +74,6 @@ export default function PositionForm({ onAdd }: Props) {
     }
 
     onAdd({
-      id: crypto.randomUUID(),
       fecha,
       tipo,
       ticker: ticker.trim().toUpperCase(),
