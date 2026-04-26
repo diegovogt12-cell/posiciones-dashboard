@@ -1,13 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PositionForm from "@/components/PositionForm";
 import PositionsTable from "@/components/PositionsTable";
-import Totales from "@/components/Totales";
+import GroupedInstrumentTab, {
+  tickerColumn,
+  tipoOpcionColumn,
+  strikeColumn,
+  vencColumn,
+} from "@/components/GroupedInstrumentTab";
 import { fetchPositions, createPosition, deletePosition } from "@/lib/storage";
 import { Position } from "@/lib/types";
+import {
+  groupPositions,
+  equityKey,
+  futuroKey,
+  opcionKey,
+  forwardKey,
+  compareGroups,
+} from "@/lib/groups";
 
-type Tab = "posiciones" | "totales";
+type Tab = "posiciones" | "equity" | "futuros" | "opciones" | "forwards";
+
+const TAB_LABELS: Record<Tab, string> = {
+  posiciones: "Posiciones",
+  equity: "Equity",
+  futuros: "Futuros",
+  opciones: "Opciones",
+  forwards: "Forwards",
+};
+
+const TAB_ORDER: Tab[] = ["posiciones", "equity", "futuros", "opciones", "forwards"];
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("posiciones");
@@ -43,14 +66,36 @@ export default function Home() {
 
   const removePosition = async (id: string) => {
     const prev = positions;
-    setPositions((ps) => ps.filter((p) => p.id !== id)); // optimista
+    setPositions((ps) => ps.filter((p) => p.id !== id));
     try {
       await deletePosition(id);
     } catch (e) {
-      setPositions(prev); // revert
+      setPositions(prev);
       setError(e instanceof Error ? e.message : "Error al eliminar");
     }
   };
+
+  // Agrupaciones por tab — useMemo para no recalcular en cada render.
+  const equityGroups = useMemo(
+    () => groupPositions(positions.filter((p) => p.tipo === "equity"), equityKey).sort(compareGroups),
+    [positions],
+  );
+  const futurosGroups = useMemo(
+    () => groupPositions(positions.filter((p) => p.tipo === "futuro"), futuroKey).sort(compareGroups),
+    [positions],
+  );
+  const opcionesGroups = useMemo(
+    () =>
+      groupPositions(
+        positions.filter((p) => p.tipo === "call" || p.tipo === "put"),
+        opcionKey,
+      ).sort(compareGroups),
+    [positions],
+  );
+  const forwardsGroups = useMemo(
+    () => groupPositions(positions.filter((p) => p.tipo === "forward"), forwardKey).sort(compareGroups),
+    [positions],
+  );
 
   return (
     <main className="max-w-6xl mx-auto px-6 py-8">
@@ -74,13 +119,12 @@ export default function Home() {
         </div>
       </header>
 
-      <nav className="flex gap-1 border-b border-slate-200 mb-6">
-        <TabButton active={tab === "posiciones"} onClick={() => setTab("posiciones")}>
-          Posiciones
-        </TabButton>
-        <TabButton active={tab === "totales"} onClick={() => setTab("totales")}>
-          Totales
-        </TabButton>
+      <nav className="flex gap-1 border-b border-slate-200 mb-6 overflow-x-auto">
+        {TAB_ORDER.map((t) => (
+          <TabButton key={t} active={tab === t} onClick={() => setTab(t)}>
+            {TAB_LABELS[t]}
+          </TabButton>
+        ))}
       </nav>
 
       {error && (
@@ -99,7 +143,51 @@ export default function Home() {
               <PositionsTable positions={positions} onDelete={removePosition} />
             </div>
           )}
-          {tab === "totales" && <Totales positions={positions} />}
+
+          {tab === "equity" && (
+            <GroupedInstrumentTab
+              groups={equityGroups}
+              identityColumns={[tickerColumn]}
+              qtyHeader="Neto títulos"
+              priceHeader="Precio promedio"
+              onDelete={removePosition}
+              emptyMessage="Aún no hay posiciones de equity."
+            />
+          )}
+
+          {tab === "futuros" && (
+            <GroupedInstrumentTab
+              groups={futurosGroups}
+              identityColumns={[tickerColumn, vencColumn]}
+              qtyHeader="Neto contratos"
+              priceHeader="Precio promedio"
+              onDelete={removePosition}
+              emptyMessage="Aún no hay posiciones en futuros."
+            />
+          )}
+
+          {tab === "opciones" && (
+            <GroupedInstrumentTab
+              groups={opcionesGroups}
+              identityColumns={[tickerColumn, tipoOpcionColumn, strikeColumn, vencColumn]}
+              qtyHeader="Neto contratos"
+              priceHeader="Prima promedio"
+              showExposure
+              onDelete={removePosition}
+              emptyMessage="Aún no hay posiciones en opciones."
+            />
+          )}
+
+          {tab === "forwards" && (
+            <GroupedInstrumentTab
+              groups={forwardsGroups}
+              identityColumns={[tickerColumn, vencColumn]}
+              qtyHeader="Neto títulos"
+              priceHeader="Precio promedio"
+              onDelete={removePosition}
+              emptyMessage="Aún no hay posiciones en forwards."
+            />
+          )}
         </>
       )}
     </main>
@@ -118,7 +206,7 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
+      className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap ${
         active
           ? "border-monex text-monex"
           : "border-transparent text-slate-500 hover:text-slate-800"
