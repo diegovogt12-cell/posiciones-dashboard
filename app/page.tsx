@@ -9,6 +9,7 @@ import GroupedInstrumentTab, {
   strikeColumn,
   vencColumn,
 } from "@/components/GroupedInstrumentTab";
+import EmisoraTab from "@/components/EmisoraTab";
 import { fetchPositions, createPosition, deletePosition } from "@/lib/storage";
 import { Position } from "@/lib/types";
 import {
@@ -20,7 +21,7 @@ import {
   compareGroups,
 } from "@/lib/groups";
 
-type Tab = "posiciones" | "equity" | "futuros" | "opciones" | "forwards";
+type Tab = "posiciones" | "equity" | "futuros" | "opciones" | "forwards" | "emisora";
 
 const TAB_LABELS: Record<Tab, string> = {
   posiciones: "Posiciones",
@@ -28,9 +29,10 @@ const TAB_LABELS: Record<Tab, string> = {
   futuros: "Futuros",
   opciones: "Opciones",
   forwards: "Forwards",
+  emisora: "Por emisora",
 };
 
-const TAB_ORDER: Tab[] = ["posiciones", "equity", "futuros", "opciones", "forwards"];
+const TAB_ORDER: Tab[] = ["posiciones", "equity", "futuros", "opciones", "forwards", "emisora"];
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("posiciones");
@@ -187,6 +189,10 @@ export default function Home() {
               onDelete={removePosition}
               emptyMessage="Aún no hay posiciones en forwards."
             />
+          )}
+
+          {tab === "emisora" && (
+            <EmisoraTab positions={positions} onDelete={removePosition} />
           )}
         </>
       )}

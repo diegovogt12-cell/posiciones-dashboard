@@ -3,12 +3,14 @@
 import { ReactNode, useState } from "react";
 import {
   CONTRACT_MULTIPLIER,
+  INSTRUMENT_LABELS,
+  InstrumentType,
   Position,
   formatVencimiento,
   notional,
   notionalExposure,
 } from "@/lib/types";
-import { InstrumentGroup } from "@/lib/groups";
+import { InstrumentGroup, groupNocional } from "@/lib/groups";
 import { formatMoney, formatNumber } from "@/lib/format";
 
 /**
@@ -33,7 +35,8 @@ interface Props {
   identityColumns: IdentityColumn[];
   qtyHeader: string;       // p. ej. "Neto títulos" / "Neto contratos"
   priceHeader: string;     // p. ej. "Precio promedio" / "Prima promedio"
-  showExposure?: boolean;  // solo opciones
+  showExposure?: boolean;  // pestaña Opciones: agrega columna strike × netQty × 100
+  showNocional?: boolean;  // pestaña Por emisora: nocional unificado (opciones por strike, otros por PEPS)
   onDelete: (id: string) => void;
   emptyMessage: string;
 }
@@ -50,6 +53,7 @@ export default function GroupedInstrumentTab({
   qtyHeader,
   priceHeader,
   showExposure = false,
+  showNocional = false,
   onDelete,
   emptyMessage,
 }: Props) {
@@ -71,8 +75,9 @@ export default function GroupedInstrumentTab({
     );
   }
 
-  // Total de columnas para colSpan del drill-down (toggle + identity + qty + precio + exposure?)
-  const colCount = 1 + identityColumns.length + 2 + (showExposure ? 1 : 0);
+  // Total de columnas para colSpan del drill-down (toggle + identity + qty + precio + exposure? + nocional?)
+  const colCount =
+    1 + identityColumns.length + 2 + (showExposure ? 1 : 0) + (showNocional ? 1 : 0);
 
   return (
     <div className={panel}>
@@ -101,6 +106,14 @@ export default function GroupedInstrumentTab({
                 Exposición (strike)
               </th>
             )}
+            {showNocional && (
+              <th
+                className="text-right px-4 py-3"
+                title="Opciones: strike × neto × 100. Otros: precio promedio PEPS × neto × multiplicador."
+              >
+                Nocional
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -112,6 +125,7 @@ export default function GroupedInstrumentTab({
               onToggle={() => toggle(g.key)}
               identityColumns={identityColumns}
               showExposure={showExposure}
+              showNocional={showNocional}
               onDelete={onDelete}
               colCount={colCount}
             />
@@ -130,6 +144,7 @@ function GroupRow({
   onToggle,
   identityColumns,
   showExposure,
+  showNocional,
   onDelete,
   colCount,
 }: {
@@ -138,12 +153,14 @@ function GroupRow({
   onToggle: () => void;
   identityColumns: IdentityColumn[];
   showExposure: boolean;
+  showNocional: boolean;
   onDelete: (id: string) => void;
   colCount: number;
 }) {
   const exposure = showExposure
     ? group.trades.reduce((s, t) => s + (notionalExposure(t) ?? 0), 0)
     : null;
+  const nocional = showNocional ? groupNocional(group) : null;
 
   return (
     <>
@@ -170,6 +187,11 @@ function GroupRow({
         {showExposure && (
           <td className={`px-4 py-3 text-right font-mono ${exposure! >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
             {formatMoney(exposure ?? 0)}
+          </td>
+        )}
+        {showNocional && (
+          <td className={`px-4 py-3 text-right font-mono ${nocional! >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+            {nocional === 0 ? <span className={muted}>—</span> : formatMoney(nocional ?? 0)}
           </td>
         )}
       </tr>
@@ -270,6 +292,26 @@ export const tipoOpcionColumn: IdentityColumn = {
       }`}
     >
       {g.tipo}
+    </span>
+  ),
+};
+
+// Badge de tipo para los 5 instrumentos (usado en el tab "Por emisora").
+const TIPO_STYLES: Record<InstrumentType, string> = {
+  equity:  "bg-slate-100 text-slate-700",
+  futuro:  "bg-sky-50 text-sky-700",
+  call:    "bg-emerald-50 text-emerald-700",
+  put:     "bg-rose-50 text-rose-700",
+  forward: "bg-amber-50 text-amber-700",
+};
+
+export const tipoColumn: IdentityColumn = {
+  header: "Tipo",
+  render: (g) => (
+    <span
+      className={`text-xs font-semibold uppercase px-2 py-0.5 rounded ${TIPO_STYLES[g.tipo]}`}
+    >
+      {INSTRUMENT_LABELS[g.tipo]}
     </span>
   ),
 };
