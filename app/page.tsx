@@ -19,6 +19,7 @@ import {
   opcionKey,
   forwardKey,
   compareGroups,
+  filterLiveGroups,
 } from "@/lib/groups";
 
 type Tab = "posiciones" | "equity" | "futuros" | "opciones" | "forwards" | "emisora";
@@ -77,25 +78,38 @@ export default function Home() {
     }
   };
 
-  // Agrupaciones por tab — useMemo para no recalcular en cada render.
+  // Agrupaciones por tab. Filtramos posiciones neteadas (netQty=0) y
+  // derivados vencidos antes de mostrarlas en las vistas agregadas.
+  // useMemo para no recalcular en cada render.
   const equityGroups = useMemo(
-    () => groupPositions(positions.filter((p) => p.tipo === "equity"), equityKey).sort(compareGroups),
+    () =>
+      filterLiveGroups(
+        groupPositions(positions.filter((p) => p.tipo === "equity"), equityKey),
+      ).sort(compareGroups),
     [positions],
   );
   const futurosGroups = useMemo(
-    () => groupPositions(positions.filter((p) => p.tipo === "futuro"), futuroKey).sort(compareGroups),
+    () =>
+      filterLiveGroups(
+        groupPositions(positions.filter((p) => p.tipo === "futuro"), futuroKey),
+      ).sort(compareGroups),
     [positions],
   );
   const opcionesGroups = useMemo(
     () =>
-      groupPositions(
-        positions.filter((p) => p.tipo === "call" || p.tipo === "put"),
-        opcionKey,
+      filterLiveGroups(
+        groupPositions(
+          positions.filter((p) => p.tipo === "call" || p.tipo === "put"),
+          opcionKey,
+        ),
       ).sort(compareGroups),
     [positions],
   );
   const forwardsGroups = useMemo(
-    () => groupPositions(positions.filter((p) => p.tipo === "forward"), forwardKey).sort(compareGroups),
+    () =>
+      filterLiveGroups(
+        groupPositions(positions.filter((p) => p.tipo === "forward"), forwardKey),
+      ).sort(compareGroups),
     [positions],
   );
 

@@ -12,6 +12,7 @@ import {
 import {
   InstrumentGroup,
   allInstrumentsKey,
+  filterLiveGroups,
   groupNocional,
   groupOldestTradeDate,
   groupPositions,
@@ -74,7 +75,9 @@ function compareInstruments(a: InstrumentGroup, b: InstrumentGroup): number {
 }
 
 function buildEmisoras(positions: Position[]): Emisora[] {
-  const allGroups = groupPositions(positions, allInstrumentsKey);
+  // Solo grupos vivos: descarta posiciones neteadas y derivados vencidos.
+  // Si una emisora se queda sin instrumentos vivos, naturalmente no aparece.
+  const allGroups = filterLiveGroups(groupPositions(positions, allInstrumentsKey));
   const byTicker = new Map<string, InstrumentGroup[]>();
   for (const g of allGroups) {
     const arr = byTicker.get(g.ticker);

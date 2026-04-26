@@ -179,3 +179,60 @@ export function sortGroups(groups: InstrumentGroup[], key: SortKey): InstrumentG
 
   return arr;
 }
+
+// ============================================================
+// Filtro de "grupos vivos" — para ocultar posiciones cerradas y
+// derivados vencidos en las vistas agregadas.
+// ============================================================
+
+const MONTH_INDEX: Record<ExpirationMonth, number> = {
+  MAR: 2,
+  JUN: 5,
+  SEP: 8,
+  DIC: 11,
+};
+
+/** Devuelve la fecha (yyyy-mm-dd) en zona horaria local. */
+function ymd(d: Date): string {
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
+/**
+ * Decide si un grupo se muestra en las vistas agregadas.
+ *
+ * Se oculta cuando:
+ *   - netQty === 0 (posición neteada — cerraste con compras = ventas)
+ *   - es un derivado y ya pasó su vencimiento:
+ *       · futuros / opciones (trimestral): se ocultan después del último
+ *         día del mes de venc. Ej: MAR26 desaparece a partir del 1-abr-2026.
+ *       · forwards: se ocultan el día después de vencFecha.
+ *
+ * Equity y derivados sin venc capturado siempre se consideran vivos.
+ */
+export function isLiveGroup(g: InstrumentGroup, today: Date = new Date()): boolean {
+  if (g.netQty === 0) return false;
+  if (g.tipo === "equity") return true;
+
+  const todayStr = ymd(today);
+
+  if (g.tipo === "forward") {
+    if (!g.vencFecha) return true;
+    return g.vencFecha >= todayStr;
+  }
+
+  // futuros / call / put — vencimiento trimestral
+  if (g.vencMes && g.vencAnio) {
+    // Último día del mes: día 0 del mes siguiente.
+    const last = new Date(g.vencAnio, MONTH_INDEX[g.vencMes] + 1, 0);
+    return ymd(last) >= todayStr;
+  }
+  return true;
+}
+
+export function filterLiveGroups(groups: InstrumentGroup[], today?: Date): InstrumentGroup[] {
+  const ref = today ?? new Date();
+  return groups.filter((g) => isLiveGroup(g, ref));
+}
