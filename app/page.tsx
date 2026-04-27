@@ -166,6 +166,7 @@ export default function Home() {
               identityColumns={[tickerColumn]}
               qtyHeader="Neto títulos"
               priceHeader="Precio promedio"
+              drilldown="lots"
               onDelete={removePosition}
               emptyMessage="Aún no hay posiciones de equity."
             />
@@ -177,6 +178,7 @@ export default function Home() {
               identityColumns={[tickerColumn, vencColumn]}
               qtyHeader="Neto contratos"
               priceHeader="Precio promedio"
+              drilldown="lots"
               onDelete={removePosition}
               emptyMessage="Aún no hay posiciones en futuros."
             />
@@ -200,6 +202,7 @@ export default function Home() {
               identityColumns={[tickerColumn, vencColumn]}
               qtyHeader="Neto títulos"
               priceHeader="Precio promedio"
+              drilldown="lots"
               onDelete={removePosition}
               emptyMessage="Aún no hay posiciones en forwards."
             />

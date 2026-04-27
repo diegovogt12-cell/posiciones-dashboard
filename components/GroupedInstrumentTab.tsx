@@ -30,6 +30,17 @@ export interface IdentityColumn {
   title?: string;
 }
 
+/**
+ * Modo del desglose al expandir una fila:
+ *   - "trades": muestra todos los trades históricos del instrumento (con
+ *     botón eliminar individual). Útil cuando cada trade es relevante por
+ *     sí mismo, p. ej. en opciones donde cada apertura tiene su prima.
+ *   - "lots": muestra solo los lotes vivos del FIFO (la posición que
+ *     queda viva después del neteo de compras/ventas). Útil para equity,
+ *     futuros y forwards donde sí hay neteo significativo.
+ */
+export type DrilldownMode = "trades" | "lots";
+
 interface Props {
   groups: InstrumentGroup[];
   identityColumns: IdentityColumn[];
@@ -37,6 +48,7 @@ interface Props {
   priceHeader: string;     // p. ej. "Precio promedio" / "Prima promedio"
   showExposure?: boolean;  // pestaña Opciones: agrega columna strike × netQty × 100
   showNocional?: boolean;  // pestaña Por emisora: nocional unificado (opciones por strike, otros por PEPS)
+  drilldown?: DrilldownMode; // default "trades"
   onDelete: (id: string) => void;
   emptyMessage: string;
 }
@@ -54,6 +66,7 @@ export default function GroupedInstrumentTab({
   priceHeader,
   showExposure = false,
   showNocional = false,
+  drilldown = "trades",
   onDelete,
   emptyMessage,
 }: Props) {
@@ -126,6 +139,7 @@ export default function GroupedInstrumentTab({
               identityColumns={identityColumns}
               showExposure={showExposure}
               showNocional={showNocional}
+              drilldown={drilldown}
               onDelete={onDelete}
               colCount={colCount}
             />
@@ -145,6 +159,7 @@ function GroupRow({
   identityColumns,
   showExposure,
   showNocional,
+  drilldown,
   onDelete,
   colCount,
 }: {
@@ -154,6 +169,7 @@ function GroupRow({
   identityColumns: IdentityColumn[];
   showExposure: boolean;
   showNocional: boolean;
+  drilldown: DrilldownMode;
   onDelete: (id: string) => void;
   colCount: number;
 }) {
@@ -199,7 +215,7 @@ function GroupRow({
         <tr className={rowBase}>
           <td></td>
           <td colSpan={colCount - 1} className="px-4 py-3 bg-slate-50/60">
-            <TradesDrilldown trades={group.trades} group={group} onDelete={onDelete} />
+            <DrilldownContent group={group} mode={drilldown} onDelete={onDelete} />
           </td>
         </tr>
       )}
@@ -207,15 +223,38 @@ function GroupRow({
   );
 }
 
-function TradesDrilldown({
-  trades,
+/**
+ * Contenido del desglose de un grupo. Reusable entre tabs y EmisoraTab.
+ *
+ * - mode="trades": lista cronológica de TODOS los trades, con eliminar.
+ * - mode="lots":   solo los lotes vivos del FIFO (la posición que sobrevive
+ *   después del neteo). Sin botón eliminar — para modificar una posición
+ *   neteada, ve al tab "Posiciones".
+ */
+export function DrilldownContent({
+  group,
+  mode,
+  onDelete,
+}: {
+  group: InstrumentGroup;
+  mode: DrilldownMode;
+  onDelete: (id: string) => void;
+}) {
+  return mode === "lots" ? (
+    <LiveLotsView group={group} />
+  ) : (
+    <TradesView group={group} onDelete={onDelete} />
+  );
+}
+
+function TradesView({
   group,
   onDelete,
 }: {
-  trades: Position[];
   group: InstrumentGroup;
   onDelete: (id: string) => void;
 }) {
+  const trades = group.trades;
   const isOption = group.tipo === "call" || group.tipo === "put";
   const mult = CONTRACT_MULTIPLIER[group.tipo];
   return (
@@ -270,6 +309,54 @@ function TradesDrilldown({
           })}
         </tbody>
       </table>
+    </>
+  );
+}
+
+function LiveLotsView({ group }: { group: InstrumentGroup }) {
+  const lots = group.liveLots;
+  const mult = CONTRACT_MULTIPLIER[group.tipo];
+  return (
+    <>
+      <div className="text-xs uppercase tracking-wider text-slate-500 mb-2">
+        {lots.length} lote{lots.length === 1 ? "" : "s"} vivo{lots.length === 1 ? "" : "s"}
+        <span className="ml-2 normal-case text-slate-400">
+          (PEPS — primeras entradas, primeras salidas{mult !== 1 ? `; multiplicador ×${mult}` : ""})
+        </span>
+      </div>
+      {lots.length === 0 ? (
+        <div className="text-xs text-slate-500">Posición plana — sin lotes vivos.</div>
+      ) : (
+        <table className="w-full text-xs">
+          <thead className="text-slate-500">
+            <tr>
+              <th className="text-left font-medium px-2 py-1">Fecha lote</th>
+              <th className="text-right font-medium px-2 py-1">Cantidad viva</th>
+              <th className="text-right font-medium px-2 py-1">Precio</th>
+              <th className="text-right font-medium px-2 py-1">Nocional</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lots.map((l, i) => {
+              const noc = l.qty * l.precio * mult;
+              return (
+                <tr key={`${l.positionId}-${i}`} className="border-t border-slate-200">
+                  <td className="px-2 py-1 font-mono text-slate-700">{l.fecha}</td>
+                  <td className={`px-2 py-1 text-right font-mono ${tone(l.qty)}`}>
+                    {l.qty >= 0 ? "+" : ""}{formatNumber(l.qty)}
+                  </td>
+                  <td className="px-2 py-1 text-right font-mono text-slate-700">
+                    {formatMoney(l.precio)}
+                  </td>
+                  <td className={`px-2 py-1 text-right font-mono ${tone(noc)}`}>
+                    {formatMoney(noc)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
     </>
   );
 }

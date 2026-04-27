@@ -2,12 +2,10 @@
 
 import { useMemo, useState } from "react";
 import {
-  CONTRACT_MULTIPLIER,
   INSTRUMENT_LABELS,
   InstrumentType,
   Position,
   formatVencimiento,
-  notional,
 } from "@/lib/types";
 import {
   InstrumentGroup,
@@ -18,6 +16,7 @@ import {
   groupPositions,
 } from "@/lib/groups";
 import { formatMoney, formatNumber } from "@/lib/format";
+import { DrilldownContent } from "./GroupedInstrumentTab";
 
 /**
  * Pestaña "Por emisora": una fila por emisora (ticker). Al expandir,
@@ -371,75 +370,22 @@ function InstrumentRow({
         <tr className="border-t border-slate-200">
           <td></td>
           <td colSpan={6} className="px-3 py-2 bg-slate-50/60">
-            <TradesList trades={group.trades} group={group} onDelete={onDelete} />
+            {/*
+              Para equity / futuros / forwards mostramos lotes vivos del FIFO
+              (la posición que sobrevive después del neteo). Para opciones,
+              cada trade es relevante por sí mismo (cada apertura tiene su
+              prima distinta) → mostramos la lista de trades.
+            */}
+            <DrilldownContent
+              group={group}
+              mode={
+                group.tipo === "call" || group.tipo === "put" ? "trades" : "lots"
+              }
+              onDelete={onDelete}
+            />
           </td>
         </tr>
       )}
-    </>
-  );
-}
-
-function TradesList({
-  trades,
-  group,
-  onDelete,
-}: {
-  trades: Position[];
-  group: InstrumentGroup;
-  onDelete: (id: string) => void;
-}) {
-  const isOption = group.tipo === "call" || group.tipo === "put";
-  const mult = CONTRACT_MULTIPLIER[group.tipo];
-  return (
-    <>
-      <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">
-        {trades.length} trade{trades.length === 1 ? "" : "s"}
-        {mult !== 1 && (
-          <span className="ml-2 normal-case text-slate-400">multiplicador ×{mult}</span>
-        )}
-      </div>
-      <table className="w-full text-[11px]">
-        <thead className="text-slate-500">
-          <tr>
-            <th className="text-left font-medium px-2 py-1">Fecha</th>
-            <th className="text-right font-medium px-2 py-1">Posición</th>
-            <th className="text-right font-medium px-2 py-1">{isOption ? "Prima" : "Precio"}</th>
-            <th className="text-right font-medium px-2 py-1">Nocional</th>
-            <th className="px-2 py-1"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {trades.map((t) => {
-            const tnoc = notional(t);
-            return (
-              <tr key={t.id} className="border-t border-slate-200">
-                <td className="px-2 py-1 font-mono text-slate-700">{t.fecha}</td>
-                <td className={`px-2 py-1 text-right font-mono ${tone(t.posicion)}`}>
-                  {t.posicion >= 0 ? "+" : ""}{formatNumber(t.posicion)}
-                </td>
-                <td className="px-2 py-1 text-right font-mono text-slate-700">
-                  {formatMoney(t.precio)}
-                </td>
-                <td className={`px-2 py-1 text-right font-mono ${tone(tnoc)}`}>
-                  {formatMoney(tnoc)}
-                </td>
-                <td className="px-2 py-1 text-right">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(t.id);
-                    }}
-                    className="text-slate-400 hover:text-rose-600 text-[10px]"
-                    aria-label="Eliminar trade"
-                  >
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
     </>
   );
 }
