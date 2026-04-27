@@ -75,3 +75,96 @@ export function fifoLiveLots(trades: Position[]): FifoResult {
 
   return { lots: inventory, netQty, avgPrice };
 }
+
+/**
+ * Match (cierre parcial o total) generado por FIFO cuando un trade consume
+ * un lote previo de dirección contraria.
+ */
+export interface ClosedMatch {
+  openPositionId: string;   // id del trade que abrió el lote
+  closePositionId: string;  // id del trade que lo cerró
+  openFecha: string;
+  closeFecha: string;
+  openPrice: number;
+  closePrice: number;
+  qty: number;              // cantidad cerrada (positiva)
+  longLot: boolean;         // true si el lote era largo (compra), false si corto (venta)
+  pnl: number;              // P&L realizado, ya con multiplicador aplicado
+}
+
+/**
+ * Como `fifoLiveLots`, pero registra cada match (cierre) para cálculo de
+ * P&L realizado.
+ *
+ * Reglas:
+ *   - Lote largo (compra) cerrado con venta:
+ *       P&L = (closePrice − openPrice) × qty × multiplicador
+ *   - Lote corto (venta) cerrado con compra:
+ *       P&L = (openPrice − closePrice) × qty × multiplicador
+ *
+ * Si un trade flippea la posición (consume todo el inventario y abre un
+ * lote opuesto), solo la porción consumida genera matches; el remanente
+ * queda como lote nuevo y aún no contribuye al P&L realizado.
+ */
+export function fifoMatches(trades: Position[], multiplier: number): ClosedMatch[] {
+  const ordered = [...trades].sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const inventory: LiveLot[] = [];
+  const matches: ClosedMatch[] = [];
+
+  for (const t of ordered) {
+    if (inventory.length === 0 || Math.sign(inventory[0].qty) === Math.sign(t.posicion)) {
+      inventory.push({
+        positionId: t.id,
+        fecha: t.fecha,
+        qty: t.posicion,
+        precio: t.precio,
+      });
+      continue;
+    }
+
+    let tradeAbs = Math.abs(t.posicion);
+
+    while (tradeAbs > 0 && inventory.length > 0) {
+      const head = inventory[0];
+      const headAbs = Math.abs(head.qty);
+      const headSign = Math.sign(head.qty);
+      const consumed = Math.min(headAbs, tradeAbs);
+
+      const longLot = headSign > 0;
+      const pnl = longLot
+        ? (t.precio - head.precio) * consumed * multiplier
+        : (head.precio - t.precio) * consumed * multiplier;
+
+      matches.push({
+        openPositionId: head.positionId,
+        closePositionId: t.id,
+        openFecha: head.fecha,
+        closeFecha: t.fecha,
+        openPrice: head.precio,
+        closePrice: t.precio,
+        qty: consumed,
+        longLot,
+        pnl,
+      });
+
+      if (headAbs <= tradeAbs) {
+        tradeAbs -= headAbs;
+        inventory.shift();
+      } else {
+        head.qty = headSign * (headAbs - tradeAbs);
+        tradeAbs = 0;
+      }
+    }
+
+    if (tradeAbs > 0) {
+      inventory.push({
+        positionId: t.id,
+        fecha: t.fecha,
+        qty: Math.sign(t.posicion) * tradeAbs,
+        precio: t.precio,
+      });
+    }
+  }
+
+  return matches;
+}

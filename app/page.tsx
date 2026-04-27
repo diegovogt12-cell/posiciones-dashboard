@@ -10,6 +10,7 @@ import GroupedInstrumentTab, {
   vencColumn,
 } from "@/components/GroupedInstrumentTab";
 import EmisoraTab from "@/components/EmisoraTab";
+import PnLTab from "@/components/PnLTab";
 import { fetchPositions, createPosition, deletePosition } from "@/lib/storage";
 import { Position } from "@/lib/types";
 import {
@@ -22,7 +23,7 @@ import {
   filterLiveGroups,
 } from "@/lib/groups";
 
-type Tab = "posiciones" | "equity" | "futuros" | "opciones" | "forwards" | "emisora";
+type Tab = "posiciones" | "equity" | "futuros" | "opciones" | "forwards" | "emisora" | "pnl";
 
 const TAB_LABELS: Record<Tab, string> = {
   posiciones: "Posiciones",
@@ -31,9 +32,10 @@ const TAB_LABELS: Record<Tab, string> = {
   opciones: "Opciones",
   forwards: "Forwards",
   emisora: "Por emisora",
+  pnl: "P&L",
 };
 
-const TAB_ORDER: Tab[] = ["posiciones", "equity", "futuros", "opciones", "forwards", "emisora"];
+const TAB_ORDER: Tab[] = ["posiciones", "equity", "futuros", "opciones", "forwards", "emisora", "pnl"];
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("posiciones");
@@ -211,6 +213,8 @@ export default function Home() {
           {tab === "emisora" && (
             <EmisoraTab positions={positions} onDelete={removePosition} />
           )}
+
+          {tab === "pnl" && <PnLTab positions={positions} />}
         </>
       )}
     </main>
