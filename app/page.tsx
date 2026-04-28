@@ -23,7 +23,15 @@ import {
   filterLiveGroups,
 } from "@/lib/groups";
 
-type Tab = "posiciones" | "equity" | "futuros" | "opciones" | "forwards" | "emisora" | "pnl";
+type Tab =
+  | "posiciones"
+  | "equity"
+  | "futuros"
+  | "opciones"
+  | "forwards"
+  | "emisora"
+  | "pnl_mes"
+  | "pnl_dia";
 
 const TAB_LABELS: Record<Tab, string> = {
   posiciones: "Posiciones",
@@ -32,10 +40,20 @@ const TAB_LABELS: Record<Tab, string> = {
   opciones: "Opciones",
   forwards: "Forwards",
   emisora: "Por emisora",
-  pnl: "P&L",
+  pnl_mes: "P&L mes",
+  pnl_dia: "P&L día",
 };
 
-const TAB_ORDER: Tab[] = ["posiciones", "equity", "futuros", "opciones", "forwards", "emisora", "pnl"];
+const TAB_ORDER: Tab[] = [
+  "posiciones",
+  "equity",
+  "futuros",
+  "opciones",
+  "forwards",
+  "emisora",
+  "pnl_mes",
+  "pnl_dia",
+];
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("posiciones");
@@ -214,7 +232,8 @@ export default function Home() {
             <EmisoraTab positions={positions} onDelete={removePosition} />
           )}
 
-          {tab === "pnl" && <PnLTab positions={positions} />}
+          {tab === "pnl_mes" && <PnLTab positions={positions} period="month" />}
+          {tab === "pnl_dia" && <PnLTab positions={positions} period="day" />}
         </>
       )}
     </main>

@@ -8,22 +8,48 @@ import {
   Position,
   formatVencimiento,
 } from "@/lib/types";
-import { buildPnLReport, TickerPnL, InstrumentPnL } from "@/lib/pnl";
+import {
+  buildPnLReport,
+  TickerPnL,
+  InstrumentPnL,
+  matchInCurrentMonth,
+  matchToday,
+} from "@/lib/pnl";
 import { ClosedMatch } from "@/lib/fifo";
 import { formatMoney, formatNumber } from "@/lib/format";
 
 /**
  * Pestaña "P&L": muestra el P&L realizado a partir de los matches FIFO
- * de equity, futuros y forwards. Las opciones se omiten.
+ * de equity, futuros y forwards (las opciones se omiten).
  *
- * Layout:
- *   - Cards arriba: total + por tipo
- *   - Tabla por ticker, expandible para ver los matches individuales
- *     (apertura, cierre, qty, P&L) agrupados por instrumento.
+ * El FIFO se corre sobre la historia completa — el filtro de período
+ * solo descarta matches cuya fecha de cierre cae fuera del rango.
+ *
+ *   - period="month": cierres del mes calendario en curso
+ *   - period="day":   cierres ocurridos hoy
+ *
+ * Layout: cards arriba (total + por tipo), tabla por emisora con
+ * drill-down jerárquico a instrumento → matches individuales.
  */
 
 interface Props {
   positions: Position[];
+  period: "month" | "day";
+}
+
+function periodHeader(period: "month" | "day"): string {
+  const d = new Date();
+  if (period === "month") {
+    const s = d.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  const s = d.toLocaleDateString("es-MX", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 const TIPO_STYLES: Record<InstrumentType, string> = {
@@ -36,8 +62,12 @@ const TIPO_STYLES: Record<InstrumentType, string> = {
 
 const tone = (n: number) => (n >= 0 ? "text-emerald-600" : "text-rose-600");
 
-export default function PnLTab({ positions }: Props) {
-  const report = useMemo(() => buildPnLReport(positions), [positions]);
+export default function PnLTab({ positions, period }: Props) {
+  const report = useMemo(() => {
+    const filter = period === "month" ? matchInCurrentMonth : matchToday;
+    return buildPnLReport(positions, filter);
+  }, [positions, period]);
+
   const [openTickers, setOpenTickers] = useState<Set<string>>(new Set());
 
   const toggle = (k: string) =>
@@ -49,15 +79,27 @@ export default function PnLTab({ positions }: Props) {
     });
 
   const hasData = report.byTicker.length > 0;
+  const header = periodHeader(period);
+  const emptyMessage =
+    period === "month"
+      ? `Aún no hubo neteos en ${header.toLowerCase()}.`
+      : `No hubo neteos hoy (${header}).`;
+  const totalLabel = period === "month" ? "P&L del mes" : "P&L del día";
 
   return (
     <div className="grid gap-6">
+      {/* Encabezado del período */}
+      <div className="flex items-baseline gap-3">
+        <span className="text-xs uppercase tracking-wider text-slate-500">Período:</span>
+        <span className="text-sm font-medium text-slate-900">{header}</span>
+      </div>
+
       {/* Resumen */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card label="P&L Realizado total" value={formatMoney(report.total)} emphasis={report.total >= 0 ? "pos" : "neg"} />
-        <Card label="Equity"   value={formatMoney(report.byTipo.equity)}  emphasis={report.byTipo.equity >= 0 ? "pos" : "neg"} />
-        <Card label="Futuros"  value={formatMoney(report.byTipo.futuro)}  emphasis={report.byTipo.futuro >= 0 ? "pos" : "neg"} />
-        <Card label="Forwards" value={formatMoney(report.byTipo.forward)} emphasis={report.byTipo.forward >= 0 ? "pos" : "neg"} />
+        <Card label={totalLabel}  value={formatMoney(report.total)}        emphasis={report.total >= 0 ? "pos" : "neg"} />
+        <Card label="Equity"      value={formatMoney(report.byTipo.equity)}  emphasis={report.byTipo.equity >= 0 ? "pos" : "neg"} />
+        <Card label="Futuros"     value={formatMoney(report.byTipo.futuro)}  emphasis={report.byTipo.futuro >= 0 ? "pos" : "neg"} />
+        <Card label="Forwards"    value={formatMoney(report.byTipo.forward)} emphasis={report.byTipo.forward >= 0 ? "pos" : "neg"} />
       </section>
 
       <section>
@@ -67,8 +109,7 @@ export default function PnLTab({ positions }: Props) {
 
         {!hasData ? (
           <div className="bg-white border border-slate-200 rounded-lg p-8 text-center text-slate-500 shadow-sm">
-            Aún no hay posiciones cerradas. El P&L realizado aparece cuando una venta cierra una compra previa
-            (o viceversa para shorts).
+            {emptyMessage}
           </div>
         ) : (
           <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
