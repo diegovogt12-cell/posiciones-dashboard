@@ -1,15 +1,17 @@
-// One-shot: ejecuta supabase/schema.sql contra la DB de Supabase.
-// Usa la conexión directa (puerto 5432). Si falla por IPv6, probamos pooler.
+// Ejecuta un archivo .sql contra la DB de Supabase.
+// Usa la conexión directa (puerto 5432). Si falla por IPv6, prueba pooler.
 import { readFileSync } from "node:fs";
 import { Client } from "pg";
 
 const password = process.argv[2];
+const file = process.argv[3] ?? "supabase/schema.sql";
 if (!password) {
-  console.error("Uso: node scripts/run-schema.mjs <DB_PASSWORD>");
+  console.error("Uso: node scripts/run-schema.mjs <DB_PASSWORD> [archivo.sql]");
   process.exit(1);
 }
 
-const sql = readFileSync("supabase/schema.sql", "utf8");
+const sql = readFileSync(file, "utf8");
+console.log(`Ejecutando ${file}...`);
 
 const configs = [
   // Session pooler (mejor para DDL sobre redes sin IPv6)

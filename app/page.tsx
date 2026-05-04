@@ -11,6 +11,7 @@ import GroupedInstrumentTab, {
 } from "@/components/GroupedInstrumentTab";
 import EmisoraTab from "@/components/EmisoraTab";
 import PnLTab from "@/components/PnLTab";
+import PnLValuationTab from "@/components/PnLValuationTab";
 import { fetchPositions, createPosition, deletePosition } from "@/lib/storage";
 import { Position } from "@/lib/types";
 import {
@@ -31,7 +32,8 @@ type Tab =
   | "forwards"
   | "emisora"
   | "pnl_mes"
-  | "pnl_t1";
+  | "pnl_t1"
+  | "pnl_val";
 
 const TAB_LABELS: Record<Tab, string> = {
   posiciones: "Posiciones",
@@ -42,6 +44,7 @@ const TAB_LABELS: Record<Tab, string> = {
   emisora: "Por emisora",
   pnl_mes: "P&L mes",
   pnl_t1: "P&L T-1",
+  pnl_val: "P&L Valuación",
 };
 
 const TAB_ORDER: Tab[] = [
@@ -53,6 +56,7 @@ const TAB_ORDER: Tab[] = [
   "emisora",
   "pnl_mes",
   "pnl_t1",
+  "pnl_val",
 ];
 
 export default function Home() {
@@ -234,6 +238,7 @@ export default function Home() {
 
           {tab === "pnl_mes" && <PnLTab positions={positions} period="month" />}
           {tab === "pnl_t1" && <PnLTab positions={positions} period="tminus1" />}
+          {tab === "pnl_val" && <PnLValuationTab positions={positions} />}
         </>
       )}
     </main>
