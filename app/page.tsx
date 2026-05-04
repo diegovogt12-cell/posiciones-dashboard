@@ -12,6 +12,7 @@ import GroupedInstrumentTab, {
 import EmisoraTab from "@/components/EmisoraTab";
 import PnLTab from "@/components/PnLTab";
 import PnLValuationTab from "@/components/PnLValuationTab";
+import TradesUploader from "@/components/TradesUploader";
 import { fetchPositions, createPosition, deletePosition } from "@/lib/storage";
 import { Position } from "@/lib/types";
 import {
@@ -89,6 +90,11 @@ export default function Home() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al guardar");
     }
+  };
+
+  const onBulkUploaded = (inserted: Position[]) => {
+    // Append los nuevos al state local (ya tienen id de la DB).
+    setPositions((prev) => [...inserted, ...prev]);
   };
 
   const removePosition = async (id: string) => {
@@ -180,6 +186,7 @@ export default function Home() {
           {tab === "posiciones" && (
             <div className="grid gap-6">
               <PositionForm onAdd={addPosition} />
+              <TradesUploader onUploaded={onBulkUploaded} />
               <PositionsTable positions={positions} onDelete={removePosition} />
             </div>
           )}

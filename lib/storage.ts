@@ -36,3 +36,23 @@ export async function deletePosition(id: string): Promise<void> {
   const res = await fetch(`/api/positions/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`DELETE /api/positions/${id} ${res.status}`);
 }
+
+/**
+ * Inserta múltiples trades en una sola request. Devuelve los registros con
+ * sus ids generados por la DB. Usado por el uploader de CSV.
+ */
+export async function bulkCreatePositions(
+  trades: Array<Omit<Position, "id">>,
+): Promise<Position[]> {
+  const res = await fetch("/api/positions/bulk", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ trades }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`POST /api/positions/bulk ${res.status}: ${text}`);
+  }
+  const { positions } = await res.json();
+  return positions as Position[];
+}
