@@ -13,8 +13,9 @@ import {
   TickerPnL,
   InstrumentPnL,
   matchInCurrentMonth,
-  matchToday,
+  matchOnTMinus1,
 } from "@/lib/pnl";
+import { previousBusinessDay } from "@/lib/business-days";
 import { ClosedMatch } from "@/lib/fifo";
 import { formatMoney, formatNumber } from "@/lib/format";
 
@@ -25,31 +26,39 @@ import { formatMoney, formatNumber } from "@/lib/format";
  * El FIFO se corre sobre la historia completa — el filtro de período
  * solo descarta matches cuya fecha de cierre cae fuera del rango.
  *
- *   - period="month": cierres del mes calendario en curso
- *   - period="day":   cierres ocurridos hoy
+ *   - period="month":   cierres del mes calendario en curso
+ *   - period="tminus1": cierres del día hábil anterior a hoy (BMV)
  *
  * Layout: cards arriba (total + por tipo), tabla por emisora con
  * drill-down jerárquico a instrumento → matches individuales.
  */
 
+type Period = "month" | "tminus1";
+
 interface Props {
   positions: Position[];
-  period: "month" | "day";
+  period: Period;
 }
 
-function periodHeader(period: "month" | "day"): string {
-  const d = new Date();
-  if (period === "month") {
-    const s = d.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
-    return s.charAt(0).toUpperCase() + s.slice(1);
-  }
-  const s = d.toLocaleDateString("es-MX", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function periodHeader(period: Period): string {
+  if (period === "month") {
+    const d = new Date();
+    return capitalize(d.toLocaleDateString("es-MX", { month: "long", year: "numeric" }));
+  }
+  // T-1: día hábil anterior a hoy
+  const prev = previousBusinessDay(new Date());
+  return capitalize(
+    prev.toLocaleDateString("es-MX", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }),
+  );
 }
 
 const TIPO_STYLES: Record<InstrumentType, string> = {
@@ -64,7 +73,7 @@ const tone = (n: number) => (n >= 0 ? "text-emerald-600" : "text-rose-600");
 
 export default function PnLTab({ positions, period }: Props) {
   const report = useMemo(() => {
-    const filter = period === "month" ? matchInCurrentMonth : matchToday;
+    const filter = period === "month" ? matchInCurrentMonth : matchOnTMinus1;
     return buildPnLReport(positions, filter);
   }, [positions, period]);
 
@@ -83,14 +92,15 @@ export default function PnLTab({ positions, period }: Props) {
   const emptyMessage =
     period === "month"
       ? `Aún no hubo neteos en ${header.toLowerCase()}.`
-      : `No hubo neteos hoy (${header}).`;
-  const totalLabel = period === "month" ? "P&L del mes" : "P&L del día";
+      : `No hubo neteos en T-1 (${header}).`;
+  const totalLabel = period === "month" ? "P&L del mes" : "P&L T-1";
+  const periodLabelInline = period === "month" ? "Mes:" : "T-1:";
 
   return (
     <div className="grid gap-6">
       {/* Encabezado del período */}
       <div className="flex items-baseline gap-3">
-        <span className="text-xs uppercase tracking-wider text-slate-500">Período:</span>
+        <span className="text-xs uppercase tracking-wider text-slate-500">{periodLabelInline}</span>
         <span className="text-sm font-medium text-slate-900">{header}</span>
       </div>
 

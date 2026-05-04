@@ -1,6 +1,7 @@
 import { CONTRACT_MULTIPLIER, ExpirationMonth, InstrumentType, Position } from "./types";
 import { ClosedMatch, fifoMatches } from "./fifo";
 import { equityKey, forwardKey, futuroKey } from "./groups";
+import { tMinus1ISO } from "./business-days";
 
 /**
  * Cálculo de P&L realizado a partir de matches FIFO.
@@ -155,3 +156,7 @@ export const matchInCurrentMonth = (m: ClosedMatch): boolean =>
 /** Filtro: el cierre fue hoy. */
 export const matchToday = (m: ClosedMatch): boolean =>
   m.closeFecha === todayISO();
+
+/** Filtro: el cierre fue el día hábil anterior a hoy (T-1, BMV). */
+export const matchOnTMinus1 = (m: ClosedMatch): boolean =>
+  m.closeFecha === tMinus1ISO();

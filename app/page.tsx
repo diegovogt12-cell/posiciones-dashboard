@@ -31,7 +31,7 @@ type Tab =
   | "forwards"
   | "emisora"
   | "pnl_mes"
-  | "pnl_dia";
+  | "pnl_t1";
 
 const TAB_LABELS: Record<Tab, string> = {
   posiciones: "Posiciones",
@@ -41,7 +41,7 @@ const TAB_LABELS: Record<Tab, string> = {
   forwards: "Forwards",
   emisora: "Por emisora",
   pnl_mes: "P&L mes",
-  pnl_dia: "P&L día",
+  pnl_t1: "P&L T-1",
 };
 
 const TAB_ORDER: Tab[] = [
@@ -52,7 +52,7 @@ const TAB_ORDER: Tab[] = [
   "forwards",
   "emisora",
   "pnl_mes",
-  "pnl_dia",
+  "pnl_t1",
 ];
 
 export default function Home() {
@@ -233,7 +233,7 @@ export default function Home() {
           )}
 
           {tab === "pnl_mes" && <PnLTab positions={positions} period="month" />}
-          {tab === "pnl_dia" && <PnLTab positions={positions} period="day" />}
+          {tab === "pnl_t1" && <PnLTab positions={positions} period="tminus1" />}
         </>
       )}
     </main>
