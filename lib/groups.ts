@@ -1,5 +1,6 @@
 import { CONTRACT_MULTIPLIER, ExpirationMonth, InstrumentType, Position } from "./types";
 import { fifoLiveLots, LiveLot } from "./fifo";
+import { quarterlyExpiryISO } from "./business-days";
 
 /**
  * Agrupa trades por "instrumento único" y calcula la posición neta + precio
@@ -185,13 +186,6 @@ export function sortGroups(groups: InstrumentGroup[], key: SortKey): InstrumentG
 // derivados vencidos en las vistas agregadas.
 // ============================================================
 
-const MONTH_INDEX: Record<ExpirationMonth, number> = {
-  MAR: 2,
-  JUN: 5,
-  SEP: 8,
-  DIC: 11,
-};
-
 /** Devuelve la fecha (yyyy-mm-dd) en zona horaria local. */
 function ymd(d: Date): string {
   const yy = d.getFullYear();
@@ -206,8 +200,9 @@ function ymd(d: Date): string {
  * Se oculta cuando:
  *   - netQty === 0 (posición neteada — cerraste con compras = ventas)
  *   - es un derivado y ya pasó su vencimiento:
- *       · futuros / opciones (trimestral): se ocultan después del último
- *         día del mes de venc. Ej: MAR26 desaparece a partir del 1-abr-2026.
+ *       · futuros / opciones (trimestral): se ocultan a partir del día
+ *         siguiente al **tercer viernes** del mes de venc (convención
+ *         BMV/MexDer). Ej: MAR26 desaparece a partir del 21-mar-2026.
  *       · forwards: se ocultan el día después de vencFecha.
  *
  * Equity y derivados sin venc capturado siempre se consideran vivos.
@@ -223,11 +218,9 @@ export function isLiveGroup(g: InstrumentGroup, today: Date = new Date()): boole
     return g.vencFecha >= todayStr;
   }
 
-  // futuros / call / put — vencimiento trimestral
+  // futuros / call / put — vencen el 3er viernes del mes
   if (g.vencMes && g.vencAnio) {
-    // Último día del mes: día 0 del mes siguiente.
-    const last = new Date(g.vencAnio, MONTH_INDEX[g.vencMes] + 1, 0);
-    return ymd(last) >= todayStr;
+    return quarterlyExpiryISO(g.vencMes, g.vencAnio) >= todayStr;
   }
   return true;
 }

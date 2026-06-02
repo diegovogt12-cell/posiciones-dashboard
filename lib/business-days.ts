@@ -1,3 +1,5 @@
+import type { ExpirationMonth } from "./types";
+
 /**
  * Calendario de días hábiles BMV / MexDer.
  *
@@ -67,4 +69,41 @@ export function previousBusinessDay(d: Date): Date {
 /** Devuelve "yyyy-mm-dd" del día hábil anterior a hoy. */
 export function tMinus1ISO(): string {
   return ymd(previousBusinessDay(new Date()));
+}
+
+// ============================================================
+// Vencimiento de derivados (futuros + opciones trimestrales)
+// ============================================================
+
+const QUARTERLY_MONTH_INDEX: Record<ExpirationMonth, number> = {
+  MAR: 2,
+  JUN: 5,
+  SEP: 8,
+  DIC: 11,
+};
+
+/**
+ * Tercer viernes del mes de vencimiento — convención BMV / MexDer para
+ * opciones (y la mayoría de futuros) trimestrales.
+ *
+ * Algoritmo: día 1 del mes → primer viernes = (5 − dayOfWeek + 7) % 7 días
+ * después → tercer viernes = primer viernes + 14 días.
+ *
+ * Ejemplos verificables manualmente:
+ *   MAR26 → 2026-03-20
+ *   JUN26 → 2026-06-19
+ *   SEP26 → 2026-09-18
+ *   DIC26 → 2026-12-18
+ */
+export function quarterlyExpiryDate(vencMes: ExpirationMonth, vencAnio: number): Date {
+  const monthIdx = QUARTERLY_MONTH_INDEX[vencMes];
+  const first = new Date(vencAnio, monthIdx, 1);
+  const dayOfWeek = first.getDay(); // 0=Dom, 5=Vie
+  const firstFridayDay = 1 + ((5 - dayOfWeek + 7) % 7);
+  return new Date(vencAnio, monthIdx, firstFridayDay + 14);
+}
+
+/** Versión ISO yyyy-mm-dd. */
+export function quarterlyExpiryISO(vencMes: ExpirationMonth, vencAnio: number): string {
+  return ymd(quarterlyExpiryDate(vencMes, vencAnio));
 }

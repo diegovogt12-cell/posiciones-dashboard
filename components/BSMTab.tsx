@@ -10,6 +10,7 @@ import {
   InstrumentGroup,
 } from "@/lib/groups";
 import { bsm } from "@/lib/bsm";
+import { quarterlyExpiryDate } from "@/lib/business-days";
 
 /**
  * Pestaña "BSM": calculadora de Black-Scholes-Merton para todas las opciones
@@ -28,22 +29,19 @@ interface Props {
   positions: Position[];
 }
 
-const MONTH_INDEX: Record<ExpirationMonth, number> = {
-  MAR: 2, JUN: 5, SEP: 8, DIC: 11,
-};
-
 const CONTRACT_SIZE = 100;
 
 const tone = (n: number | null) =>
   n == null ? "text-slate-400" : n >= 0 ? "text-emerald-600" : "text-rose-600";
 
-/** Días naturales hasta el último día del mes de venc. */
+/** Días naturales hasta el tercer viernes del mes de venc (convención BMV/MexDer). */
 function daysToExpiry(vencMes?: ExpirationMonth, vencAnio?: number): number {
   if (!vencMes || !vencAnio) return 0;
-  const last = new Date(vencAnio, MONTH_INDEX[vencMes] + 1, 0, 23, 59, 59);
+  const expiry = quarterlyExpiryDate(vencMes, vencAnio);
+  expiry.setHours(23, 59, 59, 999);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return Math.max(0, Math.ceil((last.getTime() - today.getTime()) / 86_400_000));
+  return Math.max(0, Math.ceil((expiry.getTime() - today.getTime()) / 86_400_000));
 }
 
 function parseNum(s: string): number | null {
@@ -137,7 +135,7 @@ export default function BSMTab({ positions }: Props) {
         </div>
 
         <p className="text-[11px] text-slate-500">
-          T se calcula al último día del mes de vencimiento, en días naturales / 365. Vega y rho son por 1% absoluto.
+          T se calcula al 3er viernes del mes de vencimiento (convención BMV/MexDer), en días naturales / 365. Vega y rho son por 1% absoluto.
         </p>
       </div>
 
