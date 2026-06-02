@@ -13,6 +13,7 @@ import EmisoraTab from "@/components/EmisoraTab";
 import PnLTab from "@/components/PnLTab";
 import PnLValuationTab from "@/components/PnLValuationTab";
 import TradesUploader from "@/components/TradesUploader";
+import BSMTab from "@/components/BSMTab";
 import { fetchPositions, createPosition, deletePosition } from "@/lib/storage";
 import { Position } from "@/lib/types";
 import {
@@ -34,7 +35,8 @@ type Tab =
   | "emisora"
   | "pnl_mes"
   | "pnl_t1"
-  | "pnl_val";
+  | "pnl_val"
+  | "bsm";
 
 const TAB_LABELS: Record<Tab, string> = {
   posiciones: "Posiciones",
@@ -46,6 +48,7 @@ const TAB_LABELS: Record<Tab, string> = {
   pnl_mes: "P&L mes",
   pnl_t1: "P&L T-1",
   pnl_val: "P&L Valuación",
+  bsm: "BSM",
 };
 
 const TAB_ORDER: Tab[] = [
@@ -58,6 +61,7 @@ const TAB_ORDER: Tab[] = [
   "pnl_mes",
   "pnl_t1",
   "pnl_val",
+  "bsm",
 ];
 
 export default function Home() {
@@ -246,6 +250,7 @@ export default function Home() {
           {tab === "pnl_mes" && <PnLTab positions={positions} period="month" />}
           {tab === "pnl_t1" && <PnLTab positions={positions} period="tminus1" />}
           {tab === "pnl_val" && <PnLValuationTab positions={positions} />}
+          {tab === "bsm" && <BSMTab positions={positions} />}
         </>
       )}
     </main>
