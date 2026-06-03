@@ -38,10 +38,12 @@ const tone = (n: number | null) =>
 function daysToExpiry(vencMes?: ExpirationMonth, vencAnio?: number): number {
   if (!vencMes || !vencAnio) return 0;
   const expiry = quarterlyExpiryDate(vencMes, vencAnio);
-  expiry.setHours(23, 59, 59, 999);
+  expiry.setHours(0, 0, 0, 0);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return Math.max(0, Math.ceil((expiry.getTime() - today.getTime()) / 86_400_000));
+  // Diferencia exacta entre fechas (sin extender expiry al fin del día).
+  // round protege contra el desfase de 1h por horario de verano.
+  return Math.max(0, Math.round((expiry.getTime() - today.getTime()) / 86_400_000));
 }
 
 function parseNum(s: string): number | null {
@@ -252,7 +254,7 @@ function OptionRow({
       <td className={`px-2 py-1.5 text-right font-mono ${option.netQty >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
         {option.netQty >= 0 ? "+" : ""}{formatNumber(option.netQty)}
       </td>
-      <td className="px-1 py-1 bg-amber-50/40">
+      <td className="px-1 py-1 bg-amber-50/40 text-right">
         <input
           type="number"
           step="any"
@@ -262,7 +264,7 @@ function OptionRow({
           className="w-20 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-right font-mono focus:outline-none focus:border-monex focus:ring-1 focus:ring-monex"
         />
       </td>
-      <td className="px-1 py-1 bg-amber-50/40">
+      <td className="px-1 py-1 bg-amber-50/40 text-right">
         <input
           type="number"
           step="any"
