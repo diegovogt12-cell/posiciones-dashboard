@@ -97,3 +97,81 @@ export function bsm(inputs: BSMInputs): BSMOutputs | null {
     rho:  rho  / 100,  // por 1%
   };
 }
+
+// ============================================================
+// Helpers para acceder a CDF/PDF normales desde otros módulos
+// (las uso para digitales — exportarlas evita duplicar el polinomio).
+// ============================================================
+export const _normCDF = normCDF;
+export const _normPDF = normPDF;
+
+// ============================================================
+// Opciones digitales (cash-or-nothing y asset-or-nothing)
+// ============================================================
+
+/**
+ * Inputs base para opciones digitales: subset de BSMInputs sin payout
+ * (el payout sólo aplica a cash-or-nothing).
+ */
+export interface DigitalInputs {
+  spot: number;
+  strike: number;
+  T: number;
+  r: number;
+  q: number;
+  vol: number;
+  isCall: boolean;
+}
+
+/**
+ * Cash-or-nothing: paga `payout` si vence ITM, 0 si no.
+ *   Call: Q × e^(-rT) × N(d2)
+ *   Put:  Q × e^(-rT) × N(-d2)
+ */
+export function bsmCashOrNothing(inputs: DigitalInputs, payout: number): number | null {
+  const { spot, strike, T, r, q, vol, isCall } = inputs;
+  if (!(spot > 0) || !(strike > 0) || !(T > 0) || !(vol > 0) || !(payout > 0)) return null;
+
+  const sigmaSqrtT = vol * Math.sqrt(T);
+  const d1 = (Math.log(spot / strike) + (r - q + 0.5 * vol * vol) * T) / sigmaSqrtT;
+  const d2 = d1 - sigmaSqrtT;
+  const discount = Math.exp(-r * T);
+
+  return payout * discount * (isCall ? normCDF(d2) : normCDF(-d2));
+}
+
+/**
+ * Asset-or-nothing: paga S_T si vence ITM, 0 si no.
+ *   Call: S × e^(-qT) × N(d1)
+ *   Put:  S × e^(-qT) × N(-d1)
+ */
+export function bsmAssetOrNothing(inputs: DigitalInputs): number | null {
+  const { spot, strike, T, r, q, vol, isCall } = inputs;
+  if (!(spot > 0) || !(strike > 0) || !(T > 0) || !(vol > 0)) return null;
+
+  const sigmaSqrtT = vol * Math.sqrt(T);
+  const d1 = (Math.log(spot / strike) + (r - q + 0.5 * vol * vol) * T) / sigmaSqrtT;
+  const eMinusQT = Math.exp(-q * T);
+
+  return spot * eMinusQT * (isCall ? normCDF(d1) : normCDF(-d1));
+}
+
+// ============================================================
+// Precio teórico de futuros (carry)
+// ============================================================
+
+export interface FuturePriceResult {
+  /** F = S × e^((r − q) × T) con T = días/365 */
+  continuous: number;
+  /** F = S × (1 + (r − q) × días/360) — interés simple base 360 */
+  discrete360: number;
+}
+
+export function futurePrice(spot: number, days: number, r: number, q: number): FuturePriceResult | null {
+  if (!(spot > 0) || days < 0) return null;
+  if (!Number.isFinite(r) || !Number.isFinite(q)) return null;
+  const T = days / 365;
+  const continuous = spot * Math.exp((r - q) * T);
+  const discrete360 = spot * (1 + (r - q) * (days / 360));
+  return { continuous, discrete360 };
+}
