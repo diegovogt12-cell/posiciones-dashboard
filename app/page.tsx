@@ -48,7 +48,7 @@ const TAB_LABELS: Record<Tab, string> = {
   pnl_mes: "P&L mes",
   pnl_t1: "P&L T-1",
   pnl_val: "P&L Valuación",
-  bsm: "BSM",
+  bsm: "Delta opciones",
 };
 
 const TAB_ORDER: Tab[] = [
