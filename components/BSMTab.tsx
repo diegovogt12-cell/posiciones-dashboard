@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ExpirationMonth, Position, formatVencimiento } from "@/lib/types";
 import { formatMoney, formatNumber } from "@/lib/format";
 import {
@@ -30,6 +30,38 @@ interface Props {
 }
 
 const CONTRACT_SIZE = 100;
+
+// ============================================================
+// Persistencia local (localStorage) — los inputs de spot, vol, r y q
+// sobreviven al cambio de pestaña y al reload del navegador. Por usuario
+// (cada navegador tiene su propio storage; no se comparte entre el equipo).
+// ============================================================
+const STORAGE_KEY = "bsm:inputs:v1";
+
+interface StoredState {
+  r: string;
+  q: Record<string, string>;
+  inputs: Record<string, { spot: string; vol: string }>;
+}
+
+function loadStored(): Partial<StoredState> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Partial<StoredState>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveStored(state: StoredState) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // localStorage lleno o bloqueado — fallar silenciosamente
+  }
+}
 
 const tone = (n: number | null) =>
   n == null ? "text-slate-400" : n >= 0 ? "text-emerald-600" : "text-rose-600";
@@ -61,6 +93,24 @@ export default function BSMTab({ positions }: Props) {
 
   // spot y vol por fila (key = opcionKey)
   const [inputs, setInputs] = useState<Record<string, { spot: string; vol: string }>>({});
+
+  // Hidratamos desde localStorage al montar. Marcamos hydrated=true para no
+  // sobrescribir en el primer render con los defaults.
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    const s = loadStored();
+    if (typeof s.r === "string") setRStr(s.r);
+    if (s.q && typeof s.q === "object") setQStr(s.q);
+    if (s.inputs && typeof s.inputs === "object") setInputs(s.inputs);
+    setHydrated(true);
+  }, []);
+
+  // Persistir cada cambio (después de hydrate)
+  useEffect(() => {
+    if (!hydrated) return;
+    saveStored({ r: rStr, q: qStr, inputs });
+  }, [hydrated, rStr, qStr, inputs]);
 
   // Opciones vivas, agrupadas
   const liveOptions = useMemo<InstrumentGroup[]>(() => {
