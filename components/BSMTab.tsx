@@ -137,7 +137,8 @@ export default function BSMTab({ positions }: Props) {
         </div>
 
         <p className="text-[11px] text-slate-500">
-          T se calcula al 3er viernes del mes de vencimiento (convención BMV/MexDer), en días naturales / 365. Vega y rho son por 1% absoluto.
+          T se calcula al 3er viernes del mes de vencimiento (convención BMV/MexDer), en días naturales / 365.
+          Griegas raw: ν por 1.0 (=100%) de cambio en σ, Θ por año, ρ por 1.0 de cambio en r, ψ por 1.0 de cambio en q.
         </p>
       </div>
 
@@ -158,8 +159,10 @@ export default function BSMTab({ positions }: Props) {
               <th className="text-right px-2 py-2">Δ %</th>
               <th className="text-right px-2 py-2">Δ acc</th>
               <th className="text-right px-2 py-2">Γ</th>
-              <th className="text-right px-2 py-2">ν</th>
-              <th className="text-right px-2 py-2">ρ</th>
+              <th className="text-right px-2 py-2" title="Vega — per 1.0 (=100%) absoluto de cambio en σ">ν</th>
+              <th className="text-right px-2 py-2" title="Theta — per año">Θ</th>
+              <th className="text-right px-2 py-2" title="Rho — per 1.0 de cambio en r">ρ</th>
+              <th className="text-right px-2 py-2" title="Psi — per 1.0 de cambio en q (dividend yield)">ψ</th>
             </tr>
           </thead>
           <tbody>
@@ -290,8 +293,14 @@ function OptionRow({
       <td className="px-2 py-1.5 text-right font-mono text-slate-700">
         {result ? result.vega.toFixed(4) : "—"}
       </td>
+      <td className={`px-2 py-1.5 text-right font-mono ${tone(result?.theta ?? null)}`}>
+        {result ? result.theta.toFixed(4) : "—"}
+      </td>
       <td className={`px-2 py-1.5 text-right font-mono ${tone(result?.rho ?? null)}`}>
         {result ? result.rho.toFixed(4) : "—"}
+      </td>
+      <td className={`px-2 py-1.5 text-right font-mono ${tone(result?.psi ?? null)}`}>
+        {result ? result.psi.toFixed(4) : "—"}
       </td>
     </tr>
   );

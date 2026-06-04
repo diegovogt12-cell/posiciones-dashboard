@@ -106,14 +106,60 @@ function VanillaSection() {
       </div>
 
       <div className="mt-3 text-[11px] text-slate-500">
-        T = {days} días = {(T || 0).toFixed(4)} años
+        T = {days} días = {(T || 0).toFixed(4)} años · griegas raw:
+        ν por 1.0 (=100%) de σ, Θ por año, ρ por 1.0 de r, ψ por 1.0 de q.
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mt-4">
-        <OutputCard label="Call" value={result?.call ? formatMoney(result.call.price) : "—"} tone="pos" />
-        <OutputCard label="Put"  value={result?.put  ? formatMoney(result.put.price)  : "—"} tone="neg" />
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[10px] uppercase tracking-wider text-slate-500">
+              <th className="text-left px-3 py-2"></th>
+              <th className="text-right px-3 py-2">Call</th>
+              <th className="text-right px-3 py-2">Put</th>
+            </tr>
+          </thead>
+          <tbody>
+            <VanillaGreekRow label="Prima" valC={result?.call?.price} valP={result?.put?.price} kind="money" />
+            <VanillaGreekRow label="Δ"     valC={result?.call?.delta} valP={result?.put?.delta} kind="signed" />
+            <VanillaGreekRow label="Γ"     valC={result?.call?.gamma} valP={result?.put?.gamma} kind="number" />
+            <VanillaGreekRow label="ν"     valC={result?.call?.vega}  valP={result?.put?.vega}  kind="number" />
+            <VanillaGreekRow label="Θ"     valC={result?.call?.theta} valP={result?.put?.theta} kind="signed" />
+            <VanillaGreekRow label="ρ"     valC={result?.call?.rho}   valP={result?.put?.rho}   kind="signed" />
+            <VanillaGreekRow label="ψ"     valC={result?.call?.psi}   valP={result?.put?.psi}   kind="signed" />
+          </tbody>
+        </table>
       </div>
     </section>
+  );
+}
+
+function VanillaGreekRow({
+  label,
+  valC,
+  valP,
+  kind,
+}: {
+  label: string;
+  valC: number | null | undefined;
+  valP: number | null | undefined;
+  kind: "money" | "number" | "signed";
+}) {
+  const fmt = (v: number | null | undefined) => {
+    if (v == null) return "—";
+    if (kind === "money") return formatMoney(v);
+    return v.toFixed(4);
+  };
+  const tone = (v: number | null | undefined) =>
+    kind === "signed" && v != null
+      ? v >= 0 ? "text-emerald-700" : "text-rose-700"
+      : "text-slate-900";
+  return (
+    <tr className="border-t border-slate-200">
+      <td className="px-3 py-1.5 text-slate-700">{label}</td>
+      <td className={`px-3 py-1.5 text-right font-mono ${tone(valC)}`}>{fmt(valC)}</td>
+      <td className={`px-3 py-1.5 text-right font-mono ${tone(valP)}`}>{fmt(valP)}</td>
+    </tr>
   );
 }
 
